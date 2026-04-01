@@ -55,20 +55,25 @@ with st.sidebar:
     
     st.header("📂 Data Input")
     group_id = st.text_input("Sample Group ID", "Experimental_Batch")
-    files = st.file_uploader("Upload FTIR (.csv, .txt)", accept_multiple_files=True)
+    files = st.file_uploader("Upload FTIR (.csv, .txt, .xls, .xlsx)", accept_multiple_files=True)
 
-    # INSTANT PROCESSING (No Form Submit Button Needed)
+    # INSTANT PROCESSING
     if files:
         for f in files:
             name = clean_name(f.name)
             if name not in st.session_state['spectra_storage']:
                 with st.spinner(f"Processing {name}..."):
                     try:
-                      # Load Data safely (Handles both Excel and CSV)
-if f.name.lower().endswith(('.xls', '.xlsx')):
-    df = pd.read_excel(f, header=None)
-else:
-    df = pd.read_csv(f, header=None, sep=None, engine='python', on_bad_lines='skip')
+                        # --- PROPERLY INDENTED EXCEL/CSV LOADER ---
+                        if f.name.lower().endswith(('.xls', '.xlsx')):
+                            df = pd.read_excel(f, header=None)
+                        else:
+                            df = pd.read_csv(f, header=None, sep=None, engine='python', on_bad_lines='skip')
+
+                        # Clean data
+                        df = df.apply(pd.to_numeric, errors='coerce').dropna().iloc[:, :2]
+                        df.columns = ['Wavenumber', 'Raw_Intensity']
+                        df = df.sort_values('Wavenumber', ascending=True)
 
                         # 1. Convert Transmittance to Absorbance
                         if raw_data_format == "Transmittance (%)":
