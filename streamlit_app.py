@@ -64,11 +64,11 @@ with st.sidebar:
             if name not in st.session_state['spectra_storage']:
                 with st.spinner(f"Processing {name}..."):
                     try:
-                        # Load Data safely
-                        df = pd.read_csv(f, header=None, sep=None, engine='python', on_bad_lines='skip')
-                        df = df.apply(pd.to_numeric, errors='coerce').dropna().iloc[:, :2]
-                        df.columns = ['Wavenumber', 'Raw_Intensity']
-                        df = df.sort_values('Wavenumber', ascending=True)
+                      # Load Data safely (Handles both Excel and CSV)
+if f.name.lower().endswith(('.xls', '.xlsx')):
+    df = pd.read_excel(f, header=None)
+else:
+    df = pd.read_csv(f, header=None, sep=None, engine='python', on_bad_lines='skip')
 
                         # 1. Convert Transmittance to Absorbance
                         if raw_data_format == "Transmittance (%)":
