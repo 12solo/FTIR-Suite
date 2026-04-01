@@ -62,7 +62,6 @@ POLYMER_DB = {
     # --- GENERAL FUNCTIONAL GROUPS ---
     "General / Unknown": {3300: "O-H / N-H (Broad)", 2920: "C-H (Aliphatic)", 2250: "C≡N / C≡C", 1720: "C=O (Carbonyl)", 1640: "C=C / H2O", 1050: "C-O / C-N"}
 }
-}
 
 def clean_name(filename):
     return os.path.splitext(filename)[0]
