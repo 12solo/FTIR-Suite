@@ -173,7 +173,8 @@ if not master.empty:
             legend=dict(x=1.01, y=1, bordercolor="Black", borderwidth=1)
         )
         st.plotly_chart(fig, use_container_width=True)
-            # Auto-label peaks
+           
+        # Auto-label peaks
             for poly in selected_ref:
                 for wn, label in POLYMER_DB[poly].items():
                     if df['Wavenumber'].min() <= wn <= df['Wavenumber'].max():
