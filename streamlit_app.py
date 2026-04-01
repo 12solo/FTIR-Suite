@@ -8,7 +8,7 @@ import os
 # --- 1. Page Configuration ---
 st.set_page_config(page_title="Solomon FTIR Suite 4.0", layout="wide", page_icon="🧪")
 
-st.title("🧪 Solomon FTIR Spectral Analysis")
+st.title("🧪 Solomon FTIR Suite 4.0: Advanced Spectral Analysis")
 st.markdown("---")
 
 # Initialize Session States
@@ -143,10 +143,32 @@ if not master.empty:
             # Plot the line at the current dynamic baseline
             fig.add_trace(go.Scatter(
                 x=df['Wavenumber'], y=df['Intensity'] + current_baseline,
-                mode='lines', line=dict(width=line_w), name=name
+                mode='lines', line=dict(width=line_w), 
+                name=name, hoverinfo="name+x+y",
+                showlegend=False # Turns off the default legend box for this line
             ))
 
-            # Auto-label peaks for this specific curve
+            # --- INLINE SPECTRUM TITLE ---
+            # Anchor the text to the far left side (flattest region of FTIR)
+            anchor_x = 3900 
+            # Failsafe: if data doesn't go to 3900, use the highest available wavenumber
+            if anchor_x > df['Wavenumber'].max():
+                anchor_x = df['Wavenumber'].max()
+                
+            idx_anchor = (df['Wavenumber'] - anchor_x).abs().idxmin()
+            anchor_y = df.loc[idx_anchor, 'Intensity'] + current_baseline
+
+            fig.add_annotation(
+                x=anchor_x, 
+                y=anchor_y + 0.03, # Small mathematical nudge to sit just above the line
+                text=f"<b>{name}</b>",
+                showarrow=False,
+                xanchor='left',
+                yanchor='bottom',
+                font=dict(family="Arial", size=14, color="black")
+            )
+
+            # Auto-label chemical peaks
             for poly in selected_ref:
                 for wn, label in POLYMER_DB[poly].items():
                     if df['Wavenumber'].min() <= wn <= df['Wavenumber'].max():
@@ -168,7 +190,7 @@ if not master.empty:
             template="simple_white", height=dynamic_plot_height,
             xaxis=dict(title="<b>Wavenumber (cm⁻¹)</b>", range=[4000, 400], **FTIR_STYLE),
             yaxis=dict(title="<b>Absorbance (Stacked)</b>", showticklabels=False, **FTIR_STYLE),
-            legend=dict(x=1.01, y=1, bordercolor="Black", borderwidth=1)
+            showlegend=False # Removes the empty legend box completely
         )
         st.plotly_chart(fig, use_container_width=True)
 
