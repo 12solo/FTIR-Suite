@@ -79,7 +79,7 @@ with st.sidebar:
     st.header("🎨 Plot Formatting")
     stack_offset = st.slider("Vertical Offset Cushion", 0.0, 1.0, 0.2, step=0.05)
     line_w = st.slider("Line Weight", 1.0, 4.0, 2.0)
-    selected_ref = st.multiselect("Label Peaks", list(POLYMER_DB.keys()), default=["General"])
+   selected_ref = st.multiselect("Label Peaks", list(POLYMER_DB.keys()), default=["General / Unknown"])
     
     st.header("📂 Data Input")
     group_id = st.text_input("Sample Group ID", "Experimental_Batch")
