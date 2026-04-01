@@ -137,16 +137,42 @@ if not master.empty:
 
     with tab1:
         fig = go.Figure()
+        
+        # Smart Stacking: Track the dynamic baseline
+        current_baseline = 0.0 
+        
         for i, name in enumerate(master['File'].unique()):
             df = spectra[name]
-            offset = i * stack_offset
             
-            # Plot line
+            # 1. Plot the current spectrum at the current baseline
             fig.add_trace(go.Scatter(
-                x=df['Wavenumber'], y=df['Intensity'] + offset,
+                x=df['Wavenumber'], y=df['Intensity'] + current_baseline,
                 mode='lines', line=dict(width=line_w), name=name
             ))
 
+            # 2. Auto-label peaks for this spectrum
+            for poly in selected_ref:
+                for wn, label in POLYMER_DB[poly].items():
+                    if df['Wavenumber'].min() <= wn <= df['Wavenumber'].max():
+                        idx = (df['Wavenumber'] - wn).abs().idxmin()
+                        py = df.loc[idx, 'Intensity'] + current_baseline
+                        fig.add_annotation(
+                            x=wn, y=py, text=label, showarrow=True, 
+                            arrowhead=1, ay=-30, font=dict(size=10)
+                        )
+            
+            # 3. Calculate the baseline for the NEXT spectrum
+            # It takes the absolute highest peak of the current curve and adds your slider offset
+            spectrum_max_height = df['Intensity'].max()
+            current_baseline += spectrum_max_height + (stack_offset * 0.2) # 0.2 multiplier keeps the slider sensitivity manageable
+
+        fig.update_layout(
+            template="simple_white", height=700 + (len(master['File'].unique()) * 50), # Auto-expands plot height based on file count
+            xaxis=dict(title="<b>Wavenumber (cm⁻¹)</b>", range=[4000, 400], **FTIR_STYLE),
+            yaxis=dict(title="<b>Absorbance (Normalized) + Offset</b>", showticklabels=False, **FTIR_STYLE),
+            legend=dict(x=1.01, y=1, bordercolor="Black", borderwidth=1)
+        )
+        st.plotly_chart(fig, use_container_width=True)
             # Auto-label peaks
             for poly in selected_ref:
                 for wn, label in POLYMER_DB[poly].items():
