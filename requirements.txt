@@ -4,3 +4,5 @@ numpy
 plotly
 scipy
 openpyxl
+xlrd>=2.0.1
+openpyxl
