@@ -49,7 +49,7 @@ with st.sidebar:
         smooth_val = st.slider("Savitzky-Golay Window", 5, 101, 15, step=2)
 
     st.header("🎨 Plot Formatting")
-    stack_offset = st.slider("Vertical Offset", 0.0, 2.0, 0.5, step=0.1)
+    stack_offset = st.slider("Vertical Offset Cushion", 0.0, 1.0, 0.2, step=0.05)
     line_w = st.slider("Line Weight", 1.0, 4.0, 2.0)
     selected_ref = st.multiselect("Label Peaks", list(POLYMER_DB.keys()), default=["General"])
     
@@ -64,7 +64,7 @@ with st.sidebar:
             if name not in st.session_state['spectra_storage']:
                 with st.spinner(f"Processing {name}..."):
                     try:
-                        # --- PROPERLY INDENTED EXCEL/CSV LOADER ---
+                        # Load Data safely
                         if f.name.lower().endswith(('.xls', '.xlsx')):
                             df = pd.read_excel(f, header=None)
                         else:
@@ -90,13 +90,11 @@ with st.sidebar:
                         data_len = len(df)
                         actual_window = 3 # Safe minimum fallback
                         if data_len > 3:
-                            # Ensure window is odd and fits data length
                             actual_window = smooth_val if smooth_val < data_len else (data_len - 1 if (data_len - 1) % 2 != 0 else data_len - 2)
                             
                             if actual_window > 3:
                                 df['Intensity'] = savgol_filter(df['Intensity'], actual_window, 3)
                             elif actual_window == 3:
-                                # If window shrinks to 3, polyorder MUST be 2 or lower
                                 df['Intensity'] = savgol_filter(df['Intensity'], actual_window, 2)
 
                         # 4. Baseline Correction & Normalization
@@ -105,12 +103,10 @@ with st.sidebar:
                         if max_val > 0:
                             df['Intensity'] = df['Intensity'] / max_val
 
-                        # 5. 2nd Derivative (Mathematical Edge-Case Fix)
+                        # 5. 2nd Derivative
                         d_window = max(3, actual_window - 2)
                         if d_window % 2 == 0:  
                             d_window += 1 
-                        
-                        # Polyorder must strictly be less than window length
                         d_poly = min(3, d_window - 1)
                         df['2nd_Deriv'] = savgol_filter(df['Intensity'], d_window, d_poly, deriv=2)
 
@@ -138,19 +134,19 @@ if not master.empty:
     with tab1:
         fig = go.Figure()
         
-        # Smart Stacking: Track the dynamic baseline
+        # --- SMART STACKING ALGORITHM ---
         current_baseline = 0.0 
         
         for i, name in enumerate(master['File'].unique()):
             df = spectra[name]
             
-            # 1. Plot the current spectrum at the current baseline
+            # Plot the line at the current dynamic baseline
             fig.add_trace(go.Scatter(
                 x=df['Wavenumber'], y=df['Intensity'] + current_baseline,
                 mode='lines', line=dict(width=line_w), name=name
             ))
 
-            # 2. Auto-label peaks for this spectrum
+            # Auto-label peaks for this specific curve
             for poly in selected_ref:
                 for wn, label in POLYMER_DB[poly].items():
                     if df['Wavenumber'].min() <= wn <= df['Wavenumber'].max():
@@ -161,34 +157,17 @@ if not master.empty:
                             arrowhead=1, ay=-30, font=dict(size=10)
                         )
             
-            # 3. Calculate the baseline for the NEXT spectrum
-            # It takes the absolute highest peak of the current curve and adds your slider offset
+            # Push the baseline up for the next spectrum so they NEVER overlap
             spectrum_max_height = df['Intensity'].max()
-            current_baseline += spectrum_max_height + (stack_offset * 0.2) # 0.2 multiplier keeps the slider sensitivity manageable
+            current_baseline += spectrum_max_height + stack_offset 
+
+        # Calculate a dynamic plot height so it doesn't look squished with many files
+        dynamic_plot_height = 600 + (len(master['File'].unique()) * 80)
 
         fig.update_layout(
-            template="simple_white", height=700 + (len(master['File'].unique()) * 50), # Auto-expands plot height based on file count
+            template="simple_white", height=dynamic_plot_height,
             xaxis=dict(title="<b>Wavenumber (cm⁻¹)</b>", range=[4000, 400], **FTIR_STYLE),
-            yaxis=dict(title="<b>Absorbance (Normalized) + Offset</b>", showticklabels=False, **FTIR_STYLE),
-            legend=dict(x=1.01, y=1, bordercolor="Black", borderwidth=1)
-        )
-        st.plotly_chart(fig, use_container_width=True)
-           
-         # Auto-label peaks
-            for poly in selected_ref:
-                for wn, label in POLYMER_DB[poly].items():
-                    if df['Wavenumber'].min() <= wn <= df['Wavenumber'].max():
-                        idx = (df['Wavenumber'] - wn).abs().idxmin()
-                        py = df.loc[idx, 'Intensity'] + offset
-                        fig.add_annotation(
-                            x=wn, y=py, text=label, showarrow=True, 
-                            arrowhead=1, ay=-30, font=dict(size=10)
-                        )
-
-        fig.update_layout(
-            template="simple_white", height=700,
-            xaxis=dict(title="<b>Wavenumber (cm⁻¹)</b>", range=[4000, 400], **FTIR_STYLE),
-            yaxis=dict(title="<b>Absorbance (Normalized) + Offset</b>", showticklabels=False, **FTIR_STYLE),
+            yaxis=dict(title="<b>Absorbance (Stacked)</b>", showticklabels=False, **FTIR_STYLE),
             legend=dict(x=1.01, y=1, bordercolor="Black", borderwidth=1)
         )
         st.plotly_chart(fig, use_container_width=True)
@@ -197,11 +176,14 @@ if not master.empty:
         if calc_deriv:
             st.markdown("**2nd Derivative Spectra:** Used to find hidden peaks. Minima (valleys) correspond to peak maxima in the original spectrum.")
             fig_deriv = go.Figure()
-            for name in master['File'].unique():
+            
+            # Add a small mathematical offset to the derivatives so they don't tangle
+            for i, name in enumerate(master['File'].unique()):
                 df = spectra[name]
                 if '2nd_Deriv' in df.columns:
+                    deriv_offset = i * (stack_offset * 0.1)
                     fig_deriv.add_trace(go.Scatter(
-                        x=df['Wavenumber'], y=df['2nd_Deriv'],
+                        x=df['Wavenumber'], y=df['2nd_Deriv'] + deriv_offset,
                         mode='lines', line=dict(width=1.5), name=name
                     ))
             
