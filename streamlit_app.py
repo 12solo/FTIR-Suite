@@ -86,13 +86,18 @@ with st.sidebar:
                         if apply_atr:
                             df['Intensity'] = df['Intensity'] * (df['Wavenumber'] / 1000)
 
-                        # 3. Smoothing (Dynamic Window Safety)
+                        # 3. Smoothing (Mathematical Edge-Case Fix)
                         data_len = len(df)
-                        actual_window = 3
-                        if data_len > 5:
+                        actual_window = 3 # Safe minimum fallback
+                        if data_len > 3:
+                            # Ensure window is odd and fits data length
                             actual_window = smooth_val if smooth_val < data_len else (data_len - 1 if (data_len - 1) % 2 != 0 else data_len - 2)
-                            if actual_window >= 3:
+                            
+                            if actual_window > 3:
                                 df['Intensity'] = savgol_filter(df['Intensity'], actual_window, 3)
+                            elif actual_window == 3:
+                                # If window shrinks to 3, polyorder MUST be 2 or lower
+                                df['Intensity'] = savgol_filter(df['Intensity'], actual_window, 2)
 
                         # 4. Baseline Correction & Normalization
                         df['Intensity'] = df['Intensity'] - df['Intensity'].min()
@@ -100,11 +105,14 @@ with st.sidebar:
                         if max_val > 0:
                             df['Intensity'] = df['Intensity'] / max_val
 
-                        # 5. 2nd Derivative (Always calculate to prevent KeyErrors)
+                        # 5. 2nd Derivative (Mathematical Edge-Case Fix)
                         d_window = max(3, actual_window - 2)
                         if d_window % 2 == 0:  
                             d_window += 1 
-                        df['2nd_Deriv'] = savgol_filter(df['Intensity'], d_window, 3, deriv=2)
+                        
+                        # Polyorder must strictly be less than window length
+                        d_poly = min(3, d_window - 1)
+                        df['2nd_Deriv'] = savgol_filter(df['Intensity'], d_window, d_poly, deriv=2)
 
                         # Save to memory
                         st.session_state['spectra_storage'][name] = df
