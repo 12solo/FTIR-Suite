@@ -8,7 +8,7 @@ import os
 # --- 1. Page Configuration ---
 st.set_page_config(page_title="Solomon FTIR Suite 4.0", layout="wide", page_icon="🧪")
 
-st.title("🧪 Solomon FTIR Suite 4.0: Advanced Spectral Analysis")
+st.title("🧪 Solomon FTIR Spectral Analysis")
 st.markdown("---")
 
 # Initialize Session States
