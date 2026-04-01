@@ -133,25 +133,19 @@ if not master.empty:
 
     with tab1:
         fig = go.Figure()
-        
-        # --- SMART STACKING ALGORITHM ---
         current_baseline = 0.0 
         
         for i, name in enumerate(master['File'].unique()):
             df = spectra[name]
             
-            # Plot the line at the current dynamic baseline
             fig.add_trace(go.Scatter(
                 x=df['Wavenumber'], y=df['Intensity'] + current_baseline,
                 mode='lines', line=dict(width=line_w), 
-                name=name, hoverinfo="name+x+y",
-                showlegend=False # Turns off the default legend box for this line
+                name=name, hoverinfo="name+x+y", showlegend=False 
             ))
 
-            # --- INLINE SPECTRUM TITLE ---
-            # Anchor the text to the far left side (flattest region of FTIR)
+            # Primary Tab Label Anchor (3900 cm⁻¹)
             anchor_x = 3900 
-            # Failsafe: if data doesn't go to 3900, use the highest available wavenumber
             if anchor_x > df['Wavenumber'].max():
                 anchor_x = df['Wavenumber'].max()
                 
@@ -159,16 +153,12 @@ if not master.empty:
             anchor_y = df.loc[idx_anchor, 'Intensity'] + current_baseline
 
             fig.add_annotation(
-                x=anchor_x, 
-                y=anchor_y + 0.03, # Small mathematical nudge to sit just above the line
-                text=f"<b>{name}</b>",
-                showarrow=False,
-                xanchor='left',
-                yanchor='bottom',
+                x=anchor_x, y=anchor_y + 0.03, 
+                text=f"<b>{name}</b>", showarrow=False,
+                xanchor='left', yanchor='bottom',
                 font=dict(family="Arial", size=14, color="black")
             )
 
-            # Auto-label chemical peaks
             for poly in selected_ref:
                 for wn, label in POLYMER_DB[poly].items():
                     if df['Wavenumber'].min() <= wn <= df['Wavenumber'].max():
@@ -179,48 +169,74 @@ if not master.empty:
                             arrowhead=1, ay=-30, font=dict(size=10)
                         )
             
-            # Push the baseline up for the next spectrum so they NEVER overlap
             spectrum_max_height = df['Intensity'].max()
             current_baseline += spectrum_max_height + stack_offset 
 
-        # Calculate a dynamic plot height so it doesn't look squished with many files
         dynamic_plot_height = 600 + (len(master['File'].unique()) * 80)
 
         fig.update_layout(
             template="simple_white", height=dynamic_plot_height,
             xaxis=dict(title="<b>Wavenumber (cm⁻¹)</b>", range=[4000, 400], **FTIR_STYLE),
             yaxis=dict(title="<b>Absorbance (Stacked)</b>", showticklabels=False, **FTIR_STYLE),
-            showlegend=False # Removes the empty legend box completely
+            showlegend=False 
         )
         st.plotly_chart(fig, use_container_width=True)
 
     with tab2:
         if calc_deriv:
-            st.markdown("**2nd Derivative Spectra:** Used to find hidden peaks. Minima (valleys) correspond to peak maxima in the original spectrum.")
+            st.markdown("**2nd Derivative Spectra:** Minima (valleys) correspond to peak maxima in the original spectrum.")
             fig_deriv = go.Figure()
             
-            # Add a small mathematical offset to the derivatives so they don't tangle
+            # --- SMART STACKING FOR DERIVATIVES ---
+            current_deriv_baseline = 0.0
+            
             for i, name in enumerate(master['File'].unique()):
                 df = spectra[name]
                 if '2nd_Deriv' in df.columns:
-                    deriv_offset = i * (stack_offset * 0.1)
+                    
                     fig_deriv.add_trace(go.Scatter(
-                        x=df['Wavenumber'], y=df['2nd_Deriv'] + deriv_offset,
-                        mode='lines', line=dict(width=1.5), name=name
+                        x=df['Wavenumber'], y=df['2nd_Deriv'] + current_deriv_baseline,
+                        mode='lines', line=dict(width=1.5), 
+                        name=name, hoverinfo="name+x+y", showlegend=False
                     ))
+                    
+                    # Derivative Tab Label Anchor (1950 cm⁻¹ because we zoom in)
+                    anchor_x_deriv = 1950 
+                    if anchor_x_deriv > df['Wavenumber'].max():
+                        anchor_x_deriv = df['Wavenumber'].max()
+                        
+                    idx_anchor_d = (df['Wavenumber'] - anchor_x_deriv).abs().idxmin()
+                    anchor_y_d = df.loc[idx_anchor_d, '2nd_Deriv'] + current_deriv_baseline
+                    
+                    amp_max = df['2nd_Deriv'].max()
+                    amp_min = df['2nd_Deriv'].min()
+
+                    fig_deriv.add_annotation(
+                        x=anchor_x_deriv, 
+                        y=anchor_y_d + (amp_max * 0.2), # Nudge text just above the line
+                        text=f"<b>{name}</b>",
+                        showarrow=False,
+                        xanchor='left',
+                        yanchor='bottom',
+                        font=dict(family="Arial", size=14, color="black")
+                    )
+                    
+                    # Advance the baseline using the full peak-to-valley height plus a cushion
+                    current_deriv_baseline += (amp_max - amp_min) + (stack_offset * 0.05)
             
+            dynamic_plot_height_deriv = 600 + (len(master['File'].unique()) * 80)
+
             fig_deriv.update_layout(
-                template="simple_white", height=600,
+                template="simple_white", height=dynamic_plot_height_deriv,
                 xaxis=dict(title="<b>Wavenumber (cm⁻¹)</b>", range=[2000, 600], **FTIR_STYLE), 
-                yaxis=dict(title="<b>d²A/dν²</b>", **FTIR_STYLE)
+                yaxis=dict(title="<b>d²A/dν² (Stacked)</b>", showticklabels=False, **FTIR_STYLE),
+                showlegend=False
             )
-            fig_deriv.add_hline(y=0, line_dash="dash", line_color="gray")
             st.plotly_chart(fig_deriv, use_container_width=True)
         else:
             st.info("Check 'Show 2nd Derivative Tab' in the sidebar to view peak deconvolution.")
 
     with tab3:
-        # Standardize matrix for Excel export
         common_wn = np.linspace(4000, 400, 1500)
         export_data = {"Wavenumber": common_wn}
         for name, df in spectra.items():
