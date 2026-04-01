@@ -26,13 +26,42 @@ FTIR_STYLE = dict(
     showgrid=False,
 )
 
-# Reference Library
+# --- 2. Comprehensive Reference Library ---
 POLYMER_DB = {
-    "PLA": {1750: "C=O", 1180: "C-O-C", 1080: "C-O"},
+    # --- BIOPOLYMERS & POLYESTERS ---
+    "PLA": {1750: "C=O (Ester)", 1180: "C-O-C", 1080: "C-O"},
     "PBAT": {1715: "C=O (Arom.)", 1270: "C-O", 720: "CH2-bend"},
     "PBS": {1710: "C=O", 1150: "C-O-C"},
-    "PP": {2950: "CH3-str", 1455: "CH2-bend", 1376: "CH3-bend"},
-    "General": {3300: "O-H", 1640: "H2O", 2920: "C-H"}
+    "PHA / PHB": {1720: "C=O", 1280: "C-O-C", 1055: "C-O"},
+    "PET": {1715: "C=O (Ester)", 1240: "C-O (Ester)", 1100: "Arom. C-H", 725: "Ring-def."},
+    "PC (Polycarbonate)": {1775: "C=O (Carbonate)", 1500: "Arom. C=C", 1220: "C-O-C", 1190: "O-C-O"},
+
+    # --- COMMODITY PLASTICS (POLYOLEFINS & STYRENICS) ---
+    "PE (HDPE/LDPE)": {2920: "CH2 asym-str", 2850: "CH2 sym-str", 1470: "CH2-bend", 720: "CH2-rock (Cryst.)"},
+    "PP": {2950: "CH3-str", 1455: "CH2-bend", 1376: "CH3-bend (Sym)", 973: "Isotactic band"},
+    "PS (Polystyrene)": {3026: "Arom. C-H str", 2924: "CH2 str", 1601: "Arom. C=C", 1492: "Arom. ring", 755: "Out-of-plane C-H", 698: "Ring bend"},
+    "PVC": {2970: "CH2-str", 1425: "CH2-bend", 1250: "CH-bend", 690: "C-Cl str", 615: "C-Cl str"},
+    "PMMA (Acrylic)": {1725: "C=O", 1435: "CH3-bend", 1145: "C-O-C"},
+
+    # --- ENGINEERING PLASTICS ---
+    "PA6 / PA66 (Nylon)": {3300: "N-H str (H-bonded)", 1640: "Amide I (C=O)", 1540: "Amide II (N-H bend / C-N str)"},
+    "POM (Acetal/Delrin)": {2920: "CH2-str", 1090: "C-O-C asym-str", 900: "C-O-C sym-str"},
+    "PTFE (Teflon)": {1200: "CF2 asym-str", 1150: "CF2 sym-str", 640: "CF2 wag"},
+    "ABS": {2237: "C≡N (Nitrile)", 1601: "Arom. C=C (Styrene)", 1492: "Arom. ring", 966: "C=C trans (Butadiene)"},
+
+    # --- RUBBERS & ELASTOMERS ---
+    "NR (Natural Rubber)": {2960: "CH3 str", 2850: "CH2 str", 1660: "C=C str", 1450: "CH2 bend", 835: "=C-H out-of-plane"},
+    "SBR (Styrene-Butadiene)": {2920: "CH2 str", 1600: "Arom. C=C", 1492: "Arom. ring", 965: "C=C trans", 760: "Arom. C-H", 699: "Ring bend"},
+    "NBR (Nitrile Rubber)": {2920: "CH2 str", 2237: "C≡N str (Strong)", 1440: "CH2 bend", 966: "C=C trans"},
+    "EPDM": {2920: "CH2 str", 2850: "CH2 str", 1460: "CH2 bend", 1375: "CH3 bend", 720: "CH2 rock"},
+    "Silicone (PDMS)": {2960: "CH3 str", 1260: "Si-CH3 sym-bend (Sharp)", 1090: "Si-O-Si asym-str (Broad)", 1020: "Si-O-Si", 800: "Si-C str"},
+    "CR (Neoprene)": {1660: "C=C str", 1440: "CH2 bend", 1120: "C-C str", 825: "C-Cl str"},
+    "FKM (Viton/Fluoroelastomer)": {1200: "C-F str", 1120: "CF2 str", 880: "C-F bend"},
+    "PU (Polyurethane)": {3330: "N-H str", 1730: "C=O (Non-H-bonded)", 1700: "C=O (H-bonded)", 1530: "Amide II", 1220: "C-O-C"},
+
+    # --- GENERAL FUNCTIONAL GROUPS ---
+    "General / Unknown": {3300: "O-H / N-H (Broad)", 2920: "C-H (Aliphatic)", 2250: "C≡N / C≡C", 1720: "C=O (Carbonyl)", 1640: "C=C / H2O", 1050: "C-O / C-N"}
+}
 }
 
 def clean_name(filename):
