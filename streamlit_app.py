@@ -130,7 +130,7 @@ with st.sidebar:
     line_w = st.slider("Line Weight", 1.0, 4.0, 2.0)
     selected_ref = st.multiselect("Label Peaks (DB)", list(POLYMER_DB.keys()), default=["General / Unknown"])
     
-   st.header("📂 Data Input")
+    st.header("📂 Data Input")
     group_id = st.text_input("Sample Group ID", "Experimental_Batch")
     files = st.file_uploader("Upload FTIR Data", accept_multiple_files=True)
 
