@@ -54,7 +54,7 @@ FTIR_STYLE = dict(
     showgrid=False,
 )
 
-    POLYMER_DB = {
+     POLYMER_DB = {
     "TPV (PP/EPDM)": {
         # --- Aliphatic stretching ---
         2950: "CH3 asym stretch (PP-rich phase)",
