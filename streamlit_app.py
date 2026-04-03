@@ -55,6 +55,25 @@ FTIR_STYLE = dict(
 )
 
 POLYMER_DB = {
+    "TPV (PP/EPDM)": {
+        2950: "CH3-str (PP)", 
+        2920: "CH2 asym-str (EPDM/PP)", 
+        2850: "CH2 sym-str (EPDM/PP)", 
+        1460: "CH2-bend (EPDM/PP)", 
+        1376: "CH3-bend (PP)", 
+        1167: "C-H wag (PP)", 
+        973: "CH3 Rocking (PP)", 
+        720: "CH2-rock (EPDM - n>=4)"
+    },
+    "Peroxide Cured EPDM": {
+        2920: "CH2 asym-str", 
+        2850: "CH2 sym-str", 
+        1735: "C=O (Peroxide Residue)", # Carbonyl from peroxide decomposition
+        1460: "CH2-bend", 
+        1375: "CH3-bend", 
+        1100: "C-O-C (Crosslink)", # Ether linkages/oxidative markers
+        720: "CH2-rock"
+    },
     "PLA": {1750: "C=O (Ester)", 1180: "C-O-C", 1080: "C-O"},
     "PBAT": {1715: "C=O (Arom.)", 1270: "C-O", 720: "CH2-bend"},
     "PBS": {1710: "C=O", 1150: "C-O-C"},
