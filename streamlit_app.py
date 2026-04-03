@@ -54,25 +54,51 @@ FTIR_STYLE = dict(
     showgrid=False,
 )
 
-POLYMER_DB = {
+    POLYMER_DB = {
     "TPV (PP/EPDM)": {
-        2950: "CH3-str (PP)", 
-        2920: "CH2 asym-str (EPDM/PP)", 
-        2850: "CH2 sym-str (EPDM/PP)", 
-        1460: "CH2-bend (EPDM/PP)", 
-        1376: "CH3-bend (PP)", 
-        1167: "C-H wag (PP)", 
-        973: "CH3 Rocking (PP)", 
-        720: "CH2-rock (EPDM - n>=4)"
+        # --- Aliphatic stretching ---
+        2950: "CH3 asym stretch (PP-rich phase)",
+        2918: "CH2 asym stretch (EPDM/PP backbone)",
+        2849: "CH2 sym stretch (EPDM/PP backbone)",
+
+        # --- Bending ---
+        1455: "CH2 bending (mixed phase)",
+        1376: "CH3 symmetric bend (PP indicator)",
+
+        # --- PP crystalline phase markers ---
+        1167: "C–C stretch / CH wag (PP crystalline)",
+        997: "CH3 rocking (isotactic PP crystallinity marker)",
+        973: "CH3 rocking (PP helical structure)",
+        841: "CH2 rocking (PP crystalline phase)",
+
+        # --- EPDM-specific ---
+        720: "CH2 rocking (long methylene sequences – EPDM)",
+
+        # --- Optional weak/diagnostic ---
+        1640: "C=C (residual unsaturation – EPDM, weak)"
     },
+
     "Peroxide Cured EPDM": {
-        2920: "CH2 asym-str", 
-        2850: "CH2 sym-str", 
-        1735: "C=O (Peroxide Residue)", # Carbonyl from peroxide decomposition
-        1460: "CH2-bend", 
-        1375: "CH3-bend", 
-        1100: "C-O-C (Crosslink)", # Ether linkages/oxidative markers
-        720: "CH2-rock"
+        # --- Backbone ---
+        2918: "CH2 asym stretch",
+        2849: "CH2 sym stretch",
+        1460: "CH2 bending",
+        1375: "CH3 bending",
+        720: "CH2 rocking (long chains)",
+
+        # --- Crosslinking / peroxide effects ---
+        1100: "C–O–C (ether crosslinks from peroxide)",
+        1060: "C–O stretch (oxidative crosslink structures)",
+
+        # --- Oxidation products ---
+        1735: "C=O (ketone/aldehyde from peroxide oxidation)",
+        1715: "C=O (carboxylic acid / ester oxidation products)",
+
+        # --- Residual unsaturation ---
+        1640: "C=C stretch (residual diene, weak)",
+
+        # --- Hydroperoxide / aging markers ---
+        3400: "O–H (hydroperoxide / oxidation, broad)"
     },
     "PLA": {1750: "C=O (Ester)", 1180: "C-O-C", 1080: "C-O"},
     "PBAT": {1715: "C=O (Arom.)", 1270: "C-O", 720: "CH2-bend"},
