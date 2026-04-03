@@ -99,7 +99,7 @@ st.markdown("---")
 with st.sidebar:
     # Logo and App Name
     if os.path.exists("SR.png"):
-        st.image("SR.png", width=120) # Made slightly larger for the sidebar
+        st.image("SR.png", width=120) 
     
     # Professional Developer Card
     st.markdown("""
@@ -107,9 +107,9 @@ with st.sidebar:
             <p style='color: #333333; font-size: 1em; font-weight: bold; margin-bottom: 0px;'>DEVELOPED BY SOLOMON</p>
             <p style='color: #666666; font-size: 0.85em; margin-top: 2px; margin-bottom: 10px;'>FTIR Pro Suite v5.0</p>
             <hr style='margin: 10px 0; border: 0; border-top: 1px solid #ddd;'>
-            <a href='mailto:your.solomon,duf@gmail.com' style='color: #0066cc; text-decoration: none; font-size: 0.85em; font-weight: 500;'>✉️ Contact Developer</a>
+            <a href='mailto:your.email@example.com' style='color: #0066cc; text-decoration: none; font-size: 0.85em; font-weight: 500;'>✉️ Contact Developer</a>
             <br>
-            <p style='color: #999999; font-size: 0.7em; margin-top: 10px; margin-bottom: 0px;'><i>For Research & Academic Use Only<br>© 2026</i></p>
+            <p style='color: #999999; font-size: 0.7em; margin-top: 10px; margin-bottom: 0px;'><i>For Research & Academic Use Only<br>© 2024</i></p>
         </div>
     """, unsafe_allow_html=True)
     
@@ -134,98 +134,101 @@ with st.sidebar:
     group_id = st.text_input("Sample Group ID", "Experimental_Batch")
     files = st.file_uploader("Upload FTIR Data", accept_multiple_files=True)
 
+    # --- NEW: Process Batch Button ---
     if files:
-        for f in files:
-            name = clean_name(f.name)
-            if name not in st.session_state['spectra_storage']:
-                with st.spinner(f"Processing {name}..."):
-                    try:
-                        # 1. ULTIMATE FILE PARSING (Handles "Fake" Excel Files)
-                        df = None
-                        
-                        # Attempt 1: Try reading as a true Excel file
-                        if f.name.lower().endswith(('.xls', '.xlsx')):
-                            try:
-                                df = pd.read_excel(f, header=None)
-                            except Exception:
-                                # If it crashes, it's a text file disguised as an .xls
-                                pass 
-                        
-                        # Attempt 2: Universal Text/CSV/Fake-Excel Parser
-                        if df is None:
-                            f.seek(0) # Reset file reading pointer
-                            content = f.getvalue().decode('utf-8', errors='ignore').split('\n')
-                            parsed_data = []
-                            for line in content:
-                                line = line.strip()
-                                if not line: continue
-                                # Split by commas, tabs, semicolons, or spaces
-                                parts = re.split(r'[,\t;|\s]+', line)
-                                if len(parts) >= 2:
-                                    try:
-                                        # Only grab things that are actually numbers
-                                        val_x = float(parts[0])
-                                        val_y = float(parts[1])
-                                        parsed_data.append([val_x, val_y])
-                                    except ValueError:
-                                        pass # Silently skip instrument metadata/text headers
+        if st.button("⚙️ Process Batch Data", use_container_width=True):
+            for f in files:
+                name = clean_name(f.name)
+                if name not in st.session_state['spectra_storage']:
+                    with st.spinner(f"Processing {name}..."):
+                        try:
+                            # 1. ULTIMATE FILE PARSING (Handles "Fake" Excel Files)
+                            df = None
                             
-                            if not parsed_data:
-                                raise ValueError("Could not extract any numerical data from file.")
+                            if f.name.lower().endswith(('.xls', '.xlsx')):
+                                try:
+                                    df = pd.read_excel(f, header=None)
+                                except Exception:
+                                    pass 
+                            
+                            if df is None:
+                                f.seek(0)
+                                content = f.getvalue().decode('utf-8', errors='ignore').split('\n')
+                                parsed_data = []
+                                for line in content:
+                                    line = line.strip()
+                                    if not line: continue
+                                    parts = re.split(r'[,\t;|\s]+', line)
+                                    if len(parts) >= 2:
+                                        try:
+                                            val_x = float(parts[0])
+                                            val_y = float(parts[1])
+                                            parsed_data.append([val_x, val_y])
+                                        except ValueError:
+                                            pass 
                                 
-                            df = pd.DataFrame(parsed_data)
+                                if not parsed_data:
+                                    raise ValueError("Could not extract any numerical data from file.")
+                                    
+                                df = pd.DataFrame(parsed_data)
 
-                        # --- ROBUST CLEANUP ---
-                        df = df.iloc[:, :2] # Force keep only first two columns
-                        df.columns = ['Wavenumber', 'Raw_Intensity']
-                        
-                        # Force everything to numeric (Turns any remaining text into blank 'NaN's)
-                        df['Wavenumber'] = pd.to_numeric(df['Wavenumber'], errors='coerce')
-                        df['Raw_Intensity'] = pd.to_numeric(df['Raw_Intensity'], errors='coerce')
-                        
-                        # Delete the blank rows safely, then sort ascending
-                        df = df.dropna().sort_values('Wavenumber', ascending=True).reset_index(drop=True)
-                        # ----------------------
+                            # --- ROBUST CLEANUP ---
+                            df = df.iloc[:, :2] 
+                            df.columns = ['Wavenumber', 'Raw_Intensity']
+                            
+                            df['Wavenumber'] = pd.to_numeric(df['Wavenumber'], errors='coerce')
+                            df['Raw_Intensity'] = pd.to_numeric(df['Raw_Intensity'], errors='coerce')
+                            
+                            df = df.dropna().sort_values('Wavenumber', ascending=True).reset_index(drop=True)
+                            # ----------------------
 
-                        # 2. CONVERT TO ABSORBANCE FOR MATH
-                        raw_y = df['Raw_Intensity'].values
-                        if raw_data_format == "Transmittance (%)":
-                            raw_y = np.clip(raw_y, a_min=0.001, a_max=None)
-                            abs_y = 2 - np.log10(raw_y)
-                        else:
-                            abs_y = raw_y.copy()
+                            # 2. CONVERT TO ABSORBANCE FOR MATH
+                            raw_y = df['Raw_Intensity'].values
+                            if raw_data_format == "Transmittance (%)":
+                                raw_y = np.clip(raw_y, a_min=0.001, a_max=None)
+                                abs_y = 2 - np.log10(raw_y)
+                            else:
+                                abs_y = raw_y.copy()
 
-                        if apply_atr:
-                            abs_y = abs_y * (df['Wavenumber'].values / 1000)
+                            if apply_atr:
+                                abs_y = abs_y * (df['Wavenumber'].values / 1000)
 
-                        data_len = len(df)
-                        actual_window = smooth_val if smooth_val < data_len else (data_len - 1 if (data_len - 1) % 2 != 0 else data_len - 2)
-                        if actual_window >= 3:
-                            abs_y = savgol_filter(abs_y, actual_window, 3)
+                            data_len = len(df)
+                            actual_window = smooth_val if smooth_val < data_len else (data_len - 1 if (data_len - 1) % 2 != 0 else data_len - 2)
+                            if actual_window >= 3:
+                                abs_y = savgol_filter(abs_y, actual_window, 3)
 
-                        if apply_baseline:
-                            base = baseline_als(abs_y, lam=als_lam, p=als_p)
-                            abs_y = abs_y - base
+                            if apply_baseline:
+                                base = baseline_als(abs_y, lam=als_lam, p=als_p)
+                                abs_y = abs_y - base
 
-                        abs_y = abs_y - abs_y.min()
-                        max_val = abs_y.max()
-                        if max_val > 0:
-                            abs_y = abs_y / max_val
+                            abs_y = abs_y - abs_y.min()
+                            max_val = abs_y.max()
+                            if max_val > 0:
+                                abs_y = abs_y / max_val
 
-                        df['Absorbance_Norm'] = abs_y
+                            df['Absorbance_Norm'] = abs_y
 
-                        d_window = max(3, actual_window - 2)
-                        if d_window % 2 == 0: d_window += 1 
-                        d_poly = min(3, d_window - 1)
-                        df['2nd_Deriv'] = savgol_filter(df['Absorbance_Norm'].values, d_window, d_poly, deriv=2)
+                            d_window = max(3, actual_window - 2)
+                            if d_window % 2 == 0: d_window += 1 
+                            d_poly = min(3, d_window - 1)
+                            df['2nd_Deriv'] = savgol_filter(df['Absorbance_Norm'].values, d_window, d_poly, deriv=2)
 
-                        st.session_state['spectra_storage'][name] = df
-                        new_entry = pd.DataFrame({"Group": [group_id], "File": [name]})
-                        st.session_state['ftir_master_df'] = pd.concat([st.session_state['ftir_master_df'], new_entry], ignore_index=True)
-                        st.success(f"Successfully loaded: {name}")
+                            st.session_state['spectra_storage'][name] = df
+                            new_entry = pd.DataFrame({"Group": [group_id], "File": [name]})
+                            st.session_state['ftir_master_df'] = pd.concat([st.session_state['ftir_master_df'], new_entry], ignore_index=True)
+                            st.success(f"Successfully loaded: {name}")
 
-                    except Exception as e:
-                        st.error(f"Error processing {f.name}: {e}")
+                        except Exception as e:
+                            st.error(f"Error processing {f.name}: {e}")
+
+    # --- NEW: Reset to Clean App Button ---
+    st.markdown("---")
+    if st.button("🔄 Reset to Clean", type="primary", use_container_width=True):
+        st.session_state['ftir_master_df'] = pd.DataFrame()
+        st.session_state['spectra_storage'] = {}
+        st.rerun()
+
 # --- 5. Main Dashboard View ---
 master = st.session_state['ftir_master_df']
 spectra = st.session_state['spectra_storage']
@@ -250,7 +253,6 @@ if not master.empty:
         is_transmittance = display_mode == "Transmittance (%)"
         scaled_offset = stack_offset * 100 if is_transmittance else stack_offset
         
-        # Base arrow length
         arrow_direction = 60 if is_transmittance else -60
         
         for i, name in enumerate(master['File'].unique()):
@@ -264,7 +266,6 @@ if not master.empty:
                 name=name, hoverinfo="name+x+y", showlegend=False
             ))
 
-            # --- 1. Inline Legend ---
             anchor_x = 3900 if 3900 <= wavenumbers.max() else wavenumbers.max()
             idx_anchor = np.argmin(np.abs(wavenumbers - anchor_x))
             local_y = plot_y[idx_anchor] 
@@ -279,7 +280,6 @@ if not master.empty:
                 font=dict(family="Arial", size=13, color="black")
             )
 
-            # --- 2. Smart Peak Staggering ---
             valid_peaks = []
             for poly in selected_ref:
                 for wn, label in POLYMER_DB[poly].items():
@@ -287,29 +287,26 @@ if not master.empty:
                         idx = np.argmin(np.abs(wavenumbers - wn))
                         valid_peaks.append({"wn": wn, "py": plot_y[idx] + current_baseline, "label": label})
             
-            # Sort peaks by Wavenumber to properly stagger adjacent labels
             valid_peaks = sorted(valid_peaks, key=lambda d: d["wn"])
 
             for p_idx, p_data in enumerate(valid_peaks):
-                # Stagger heights to prevent horizontal text collision
                 stagger_dist = 25 if p_idx % 2 != 0 else 0
                 current_ay = (arrow_direction + stagger_dist) if is_transmittance else (arrow_direction - stagger_dist)
 
                 fig.add_annotation(
                     x=p_data["wn"], y=p_data["py"], 
-                    text=f"<b>{p_data['label']}</b>", # BOLD
+                    text=f"<b>{p_data['label']}</b>", 
                     showarrow=True, 
                     arrowhead=1, arrowsize=1, arrowwidth=1.2, arrowcolor="#555555",
                     ay=current_ay, ax=0, 
-                    standoff=8, # Force a physical gap between arrow and line
+                    standoff=8, 
                     font=dict(family="Times New Roman", size=12, color="black"),
-                    bgcolor="rgba(255, 255, 255, 0.85)", # Semi-transparent white background to hide lines crossing behind text
+                    bgcolor="rgba(255, 255, 255, 0.85)", 
                     borderpad=2
                 )
             
-            # --- 3. Smart Auto-Spacing Math ---
             spectrum_height = plot_y.max() if not is_transmittance else 100
-            text_buffer = spectrum_height * 0.35 # Increased buffer for the taller, staggered arrows
+            text_buffer = spectrum_height * 0.35 
             current_baseline += spectrum_height + scaled_offset + text_buffer
 
         dynamic_plot_height = 600 + (len(master['File'].unique()) * 110)
@@ -322,18 +319,16 @@ if not master.empty:
         st.plotly_chart(fig, use_container_width=True)
 
     # ---------------------------
-    # ---------------------------
     # TAB 2: 2ND DERIVATIVE
     # ---------------------------
     with tab2:
-        # --- NEW: Educational Info Box ---
         with st.expander("ℹ️ How to interpret the 2nd Derivative"):
             st.markdown("""
             **Second Derivative Spectroscopy** is a mathematical technique used to artificially enhance the resolution of your spectrum.
             
-            * **Revealing Hidden Peaks:** Broad, overlapping absorption bands often hide smaller peaks (which just look like faint "shoulders"). Taking the 2nd derivative dramatically sharpens these features, splitting a single messy bump into distinct, separate signals.
-            * **Removing Baselines:** The derivative math automatically cancels out constant (flat) and linear (slanted) baseline errors, making it excellent for highly accurate quantitative analysis.
-            * **How to read the plot (⚠️ Important):** Because of how the calculus works, a peak *maximum* in your original absorbance spectrum becomes a **sharp minimum (pointing downwards)** in the 2nd derivative. To find the exact center of a hidden peak, look for the lowest "valleys" on this graph!
+            * **Revealing Hidden Peaks:** Broad, overlapping absorption bands often hide smaller peaks. Taking the 2nd derivative dramatically sharpens these features.
+            * **Removing Baselines:** The derivative math automatically cancels out constant (flat) and linear (slanted) baseline errors.
+            * **How to read the plot (⚠️ Important):** A peak *maximum* in your original absorbance spectrum becomes a **sharp minimum (pointing downwards)** in the 2nd derivative. Look for the lowest "valleys" on this graph!
             """)
 
         fig_deriv = go.Figure()
@@ -377,6 +372,7 @@ if not master.empty:
             margin=dict(l=50, r=50, t=50, b=50)
         )
         st.plotly_chart(fig_deriv, use_container_width=True)
+
     # ---------------------------
     # TAB 3: PEAK SUMMARY TABLE
     # ---------------------------
@@ -408,20 +404,17 @@ if not master.empty:
             st.info("Select a Reference Library in the sidebar to generate assignments.")
 
     # ---------------------------
-   # ---------------------------
     # TAB 4: GAUSSIAN DECONVOLUTION
     # ---------------------------
     with tab4:
         st.markdown("### Peak Deconvolution & Gaussian Fitting")
         
-        # --- NEW: Educational Info Box ---
         with st.expander("ℹ️ What is Peak Deconvolution?"):
             st.markdown("""
             **Peak Deconvolution** is the mathematical process of separating broad, overlapping spectral bands into individual, underlying peaks.
             
-            * **Why Gaussian Fitting?** Infrared absorption bands naturally form bell-shaped curves (Gaussian distributions). By calculating the perfect mathematical curve to fit your raw data, we can isolate overlapping bonds that look like a single messy lump.
+            * **Why Gaussian Fitting?** Infrared absorption bands naturally form bell-shaped curves (Gaussian distributions). By calculating the perfect mathematical curve to fit your raw data, we can isolate overlapping bonds.
             * **How to read the plot:** The **red 'x' marks** show where the algorithm detected a peak crest. The **dashed lines** are the calculated Gaussian curves that best fit the actual shape of your spectrum.
-            * **Why it matters:** Finding the exact center of a hidden peak allows for precise molecular identification, and the area under these fitted curves is frequently used to calculate crystallinity or relative concentration.
             """)
 
         target_fit = st.selectbox("Select Spectrum to Fit", list(spectra.keys()))
@@ -459,20 +452,19 @@ if not master.empty:
             template="simple_white", height=500
         )
         st.plotly_chart(fig_fit, use_container_width=True)
+
     # ---------------------------
     # TAB 5: PCA CLUSTERING
     # ---------------------------
     with tab5:
         st.markdown("### Principal Component Analysis (PCA)")
         
-        # --- NEW: Educational Info Box ---
         with st.expander("ℹ️ How to interpret this PCA Plot"):
             st.markdown("""
-            **Principal Component Analysis (PCA)** is a statistical tool that takes the thousands of data points in your FTIR spectra and compresses them down to the most important underlying trends (Principal Components).
+            **Principal Component Analysis (PCA)** is a statistical tool that takes the thousands of data points in your FTIR spectra and compresses them down to the most important underlying trends.
             
             * **Spatial Clustering:** Spectra that are chemically similar will cluster close together on the graph. Spectra that are chemically distinct will be pushed far apart.
-            * **What are PC 1 and PC 2?** These are artificial axes created by the algorithm. **PC 1** represents the direction of the *greatest variance* (the biggest differences) among all your samples. **PC 2** represents the second greatest variance.
-            * **The Percentages:** The percentages on the axes tell you how much of the total chemical difference in your entire dataset is captured by that specific axis.
+            * **What are PC 1 and PC 2?** **PC 1** represents the direction of the *greatest variance* (the biggest differences) among all your samples. **PC 2** represents the second greatest variance.
             """)
 
         if len(spectra) < 3:
@@ -497,19 +489,19 @@ if not master.empty:
             fig_pca.update_xaxes(**FTIR_STYLE)
             fig_pca.update_yaxes(**FTIR_STYLE)
             st.plotly_chart(fig_pca, use_container_width=True)
+
     # ---------------------------
     # TAB 6: SPECTRAL MATCHING
     # ---------------------------
     with tab6:
         st.markdown("### Library Cosine Similarity")
         
-        # --- NEW: Educational Info Box ---
         with st.expander("ℹ️ How does Spectral Matching work?"):
             st.markdown("""
             **Cosine Similarity** mathematically compares two spectra by treating their data points as multi-dimensional vectors and measuring the angle between them. 
             
-            * **Why it's the standard for FTIR:** It evaluates the *overall shape* and *peak alignment* of the curves. This makes it highly robust against baseline shifts, differences in sample thickness, or varying concentrations.
-            * **Interpretation:** A **100%** match indicates the spectral profiles are structurally identical, regardless of their absolute height.
+            * **Why it's the standard:** It evaluates the *overall shape* and *peak alignment* of the curves. This makes it highly robust against baseline shifts or varying concentrations.
+            * **Interpretation:** A **100%** match indicates the spectral profiles are structurally identical.
             """)
             
         if len(spectra) < 2:
@@ -526,14 +518,9 @@ if not master.empty:
                 
                 st.write("#### Top Matches")
                 for r in matches:
-                    # --- NEW: Convert decimal to Percentage ---
                     sim_score = float(r[1])
                     sim_pct = sim_score * 100
-                    
-                    # Ensure progress bar stays within 0.0 - 1.0 limits safely
                     safe_bar_val = max(0.0, min(1.0, sim_score))
-                    
-                    # Display as a percentage (e.g., 98.5%)
                     st.progress(safe_bar_val, text=f"{r[0]} ({sim_pct:.1f}%)")
                     
             with col2:
@@ -549,6 +536,7 @@ if not master.empty:
                         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
                     )
                     st.plotly_chart(fig_match, use_container_width=True)
+
     # ---------------------------
     # TAB 7: DATA MATRIX
     # ---------------------------
