@@ -132,7 +132,9 @@ with st.sidebar:
     
     st.header("📂 Data Input")
     group_id = st.text_input("Sample Group ID", "Experimental_Batch")
-    files = st.file_uploader("Upload FTIR Data", type=['csv', 'txt', 'xls', 'xlsx', 'dpt', 'asc', 'prn'], accept_multiple_files=True)
+    
+    # REMOVED the 'type' parameter so it accepts ANY file extension
+    files = st.file_uploader("Upload FTIR Data", accept_multiple_files=True)
 
     if files:
         for f in files:
@@ -140,6 +142,7 @@ with st.sidebar:
             if name not in st.session_state['spectra_storage']:
                 with st.spinner(f"Processing {name}..."):
                     try:
+                        # 1. BULLETPROOF FILE PARSING
                         if f.name.lower().endswith(('.xls', '.xlsx')):
                             df = pd.read_excel(f, header=None)
                         else:
@@ -162,10 +165,19 @@ with st.sidebar:
                                 
                             df = pd.DataFrame(parsed_data)
 
-                        df = df.dropna().iloc[:, :2]
+                        # --- ROBUST CLEANUP ---
+                        df = df.iloc[:, :2] # Keep only first two columns
                         df.columns = ['Wavenumber', 'Raw_Intensity']
-                        df = df.sort_values('Wavenumber', ascending=True).reset_index(drop=True)
+                        
+                        # Force everything to be a number (Turns text headers into blank 'NaN's)
+                        df['Wavenumber'] = pd.to_numeric(df['Wavenumber'], errors='coerce')
+                        df['Raw_Intensity'] = pd.to_numeric(df['Raw_Intensity'], errors='coerce')
+                        
+                        # Delete the blank rows safely, then sort
+                        df = df.dropna().sort_values('Wavenumber', ascending=True).reset_index(drop=True)
+                        # ----------------------
 
+                        # 2. CONVERT TO ABSORBANCE FOR MATH
                         raw_y = df['Raw_Intensity'].values
                         if raw_data_format == "Transmittance (%)":
                             raw_y = np.clip(raw_y, a_min=0.001, a_max=None)
@@ -209,7 +221,6 @@ with st.sidebar:
         st.session_state['ftir_master_df'] = pd.DataFrame()
         st.session_state['spectra_storage'] = {}
         st.rerun()
-
 # --- 5. Main Dashboard View ---
 master = st.session_state['ftir_master_df']
 spectra = st.session_state['spectra_storage']
