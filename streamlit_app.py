@@ -442,6 +442,8 @@ PLOT_BG    = "#ffffff"
 PAPER_BG   = "#ffffff"
 BLACK      = "#000000"
 GOLD       = "#c9a84c"
+WHITE      = "#ffffff"
+WHITE_TXT  = "#1e293b"
 
 FTIR_STYLE = dict(
     mirror=True, 
