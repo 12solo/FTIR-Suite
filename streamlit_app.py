@@ -46,8 +46,8 @@ st.markdown("""
     /* Light Mode Colors */
     --bg-white:   #ffffff;
     --bg-offwhite:#f8fafc;
-    --text-dark:  #1e293b;
-    --text-muted: #64748b;
+    --text-dark:  #000000; /* Pure Dark Black for normal text */
+    --text-muted: #111111; /* Almost black for secondary text */
     --border-light:#e2e8f0;
     
     --accent:     #3a7bd5;
@@ -75,11 +75,11 @@ html, body, [class*="css"] {
     border-right: 1px solid var(--border-light);
 }
 
-/* Fixed material icon bug */
+/* Fixed material icon bug and force pure black text */
 [data-testid="stSidebar"] .stMarkdown,
 [data-testid="stSidebar"] label,
 [data-testid="stSidebar"] p {
-    color: var(--text-dark) !important;
+    color: #000000 !important;
     font-family: var(--font-body);
 }
 .material-symbols-rounded,
@@ -106,7 +106,7 @@ html, body, [class*="css"] {
     background: var(--bg-white) !important;
     border: 1px solid var(--border-light) !important;
     border-radius: 4px !important;
-    color: var(--text-dark) !important;
+    color: #000000 !important;
     font-family: var(--font-mono) !important;
     font-size: 0.82rem !important;
 }
@@ -130,7 +130,7 @@ html, body, [class*="css"] {
     background: var(--bg-white) !important;
     border: 1px solid var(--border-light) !important;
     border-radius: 4px !important;
-    color: var(--text-dark) !important;
+    color: #000000 !important;
     font-family: var(--font-mono) !important;
     font-size: 0.82rem !important;
 }
@@ -185,7 +185,7 @@ html, body, [class*="css"] {
     gap: 0; padding: 0;
 }
 [data-testid="stTabs"] [role="tab"] {
-    color: var(--text-muted) !important;
+    color: #000000 !important;
     font-family: var(--font-body) !important;
     font-size: 0.78rem !important;
     font-weight: 600 !important;
@@ -199,7 +199,7 @@ html, body, [class*="css"] {
     background: rgba(0,0,0,0.02) !important;
 }
 [data-testid="stTabs"] [role="tab"][aria-selected="true"] {
-    color: var(--navy) !important;
+    color: #000000 !important;
     border-bottom-color: var(--gold) !important;
     background: var(--bg-white) !important;
 }
@@ -212,11 +212,11 @@ html, body, [class*="css"] {
 }
 [data-testid="stDataFrame"] th {
     background: var(--bg-offwhite) !important;
-    color: var(--navy) !important;
+    color: #000000 !important;
     border-bottom: 1px solid var(--border-light) !important;
 }
 [data-testid="stDataFrame"] td {
-    color: var(--text-dark) !important;
+    color: #000000 !important;
 }
 
 /* ── Expanders ────────────────────────────────── */
@@ -226,24 +226,24 @@ html, body, [class*="css"] {
     background: var(--bg-white) !important;
 }
 [data-testid="stExpander"] summary {
-    color: var(--navy) !important;
-    font-weight: 600 !important;
+    color: #000000 !important;
+    font-weight: 700 !important;
 }
 
 /* ── Text Area & Selectors ────────────────────── */
 .stTextArea textarea {
     background: var(--bg-white) !important;
     border: 1px solid var(--border-light) !important;
-    color: var(--text-dark) !important;
+    color: #000000 !important;
 }
 [data-baseweb="tag"] {
     background: var(--bg-offwhite) !important;
     border: 1px solid var(--border-light) !important;
 }
-[data-baseweb="tag"] span { color: var(--navy) !important; }
+[data-baseweb="tag"] span { color: #000000 !important; }
 
 /* ── Alerts ───────────────────────────────────── */
-[data-testid="stAlert"] { color: var(--text-dark) !important; }
+[data-testid="stAlert"] { color: #000000 !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -314,8 +314,8 @@ def metric_card(label, value, unit="", delta=None):
         border-top: 3px solid #c9a84c;
         box-shadow: 0 2px 8px rgba(0,0,0,0.02);
     ">
-        <div style="font-family:'IBM Plex Sans',sans-serif;font-size:0.68rem;color:#64748b;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:4px;font-weight:600;">{label}</div>
-        <div style="font-family:'IBM Plex Mono',monospace;font-size:1.35rem;color:#1e293b;font-weight:600;">{value}<span style="font-size:0.7rem;color:#64748b;margin-left:4px;">{unit}</span></div>
+        <div style="font-family:'IBM Plex Sans',sans-serif;font-size:0.68rem;color:#000000;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:4px;font-weight:700;">{label}</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:1.35rem;color:#000000;font-weight:700;">{value}<span style="font-size:0.7rem;color:#000000;margin-left:4px;">{unit}</span></div>
         {delta_html}
     </div>
     """
@@ -356,7 +356,7 @@ def info_box(text, kind="info"):
     <div style="
         background:{bg}; border-left:4px solid {border};
         border-radius:4px; padding:0.75rem 1rem;
-        font-family:'IBM Plex Sans',sans-serif; font-size:0.85rem; color:#334155;
+        font-family:'IBM Plex Sans',sans-serif; font-size:0.85rem; color:#000000;
         margin:0.5rem 0; font-weight:500;
     "><span style="color:{border};margin-right:0.5rem;font-weight:bold;">{icon}</span>{text}</div>
     """, unsafe_allow_html=True)
@@ -384,7 +384,7 @@ def render_sidebar_brand():
             font-family:'Playfair Display',Georgia,serif;
             font-size:1.1rem;
             font-weight:700;
-            color:#1e293b;
+            color:#000000;
         ">FTIR Pro Suite <span style="color:#c9a84c;">5.0</span></div>
         <div style="
             margin-top:0.75rem;
@@ -392,7 +392,8 @@ def render_sidebar_brand():
             border-top:1px solid #e2e8f0;
             font-family:'IBM Plex Sans',sans-serif;
             font-size:0.68rem;
-            color:#64748b;
+            color:#000000;
+            font-weight:500;
         ">Advanced Spectroscopy Tools<br>
         <a href='mailto:your.solomon.duf@gmail.com'
            style='color:#9c7a32;text-decoration:none;'>
@@ -443,7 +444,7 @@ PAPER_BG   = "#ffffff"
 BLACK      = "#000000"
 GOLD       = "#c9a84c"
 WHITE      = "#ffffff"
-WHITE_TXT  = "#1e293b"
+WHITE_TXT  = "#000000" # Set text to pure black
 
 FTIR_STYLE = dict(
     mirror=True, 
@@ -639,7 +640,7 @@ with st.sidebar:
 
     st.markdown("""
     <div style="padding:1rem 0 0.5rem;text-align:center;font-family:'IBM Plex Sans',sans-serif;
-                font-size:0.65rem;color:rgba(100,116,139,0.6);letter-spacing:0.1em;">
+                font-size:0.65rem;color:#000000;letter-spacing:0.1em;font-weight:500;">
         For Research & Academic Use Only<br>Version 5.0 Pro
     </div>
     """, unsafe_allow_html=True)
@@ -726,7 +727,7 @@ if not master.empty:
                 stagger_dist = 25 if p_idx % 2 != 0 else 0
                 current_ay = (arrow_direction + stagger_dist) if is_transmittance else (arrow_direction - stagger_dist)
 
-                # Peak Annotation (Journal Style)
+                # Peak Annotation (Journal Style) - NO BORDER
                 fig.add_annotation(
                     x=p_data["wn"], y=p_data["py"], 
                     text=f"{p_data['label']}", 
@@ -735,7 +736,7 @@ if not master.empty:
                     ay=current_ay, ax=0, 
                     standoff=5, 
                     font=dict(family="Arial", size=12, color=BLACK),
-                    bgcolor=PAPER_BG, bordercolor=BLACK, borderwidth=1, borderpad=3
+                    bgcolor=PAPER_BG, borderpad=3  # Removed bordercolor and borderwidth
                 )
             
             spectrum_height = plot_y.max() - plot_y.min() if not is_transmittance else 100
@@ -966,7 +967,7 @@ if not master.empty:
                 results = match_spectrum(library[sample_target], library)
                 matches = [r for r in results if r[0] != sample_target]
                 
-                st.markdown("<br><h4 style='color:#1e293b;font-family:Arial;'>Top Matches</h4>", unsafe_allow_html=True)
+                st.markdown("<br><h4 style='color:#000000;font-family:Arial;'>Top Matches</h4>", unsafe_allow_html=True)
                 for r in matches:
                     sim_score = float(r[1])
                     sim_pct = sim_score * 100
@@ -997,7 +998,7 @@ if not master.empty:
     # ---------------------------
     with tab7:
         section_title("Data Matrix Export", "📊")
-        st.markdown("<p style='color:#64748b;'>Interpolates all processed spectra onto a unified wavenumber axis for external machine learning or plotting.</p>", unsafe_allow_html=True)
+        st.markdown("<p style='color:#000000;'>Interpolates all processed spectra onto a unified wavenumber axis for external machine learning or plotting.</p>", unsafe_allow_html=True)
         
         common_wn = np.linspace(4000, 400, 1500)
         export_data = {"Wavenumber": common_wn}
@@ -1028,11 +1029,11 @@ else:
         <div style="font-size:3rem;margin-bottom:1rem;">📉</div>
         <div style="
             font-family:'Playfair Display',Georgia,serif;
-            font-size:1.5rem;color:#1e293b; margin-bottom:0.5rem; font-weight:700;
+            font-size:1.5rem;color:#000000; margin-bottom:0.5rem; font-weight:700;
         ">Ready for Spectral Analysis</div>
         <div style="
             font-family:'IBM Plex Sans',sans-serif;
-            font-size:0.85rem;color:#64748b;
+            font-size:0.85rem;color:#000000;
             max-width:480px;margin:0 auto;line-height:1.7;
         ">
             Upload your raw FTIR data files via the <b style="color:#c9a84c;">Data Input</b> panel
