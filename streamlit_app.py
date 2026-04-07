@@ -75,7 +75,7 @@ html, body, [class*="css"] {
     border-right: 1px solid var(--border-light);
 }
 
-/* Fixed material icon "pooping text" bug */
+/* Fixed material icon bug */
 [data-testid="stSidebar"] .stMarkdown,
 [data-testid="stSidebar"] label,
 [data-testid="stSidebar"] p {
@@ -436,30 +436,40 @@ def clean_name(filename):
     return os.path.splitext(filename)[0]
 
 # ==========================================
-# PLOTLY THEME & DATABASE
+# PLOTLY THEME (STRICT JOURNAL QUALITY)
 # ==========================================
 PLOT_BG    = "#ffffff"
 PAPER_BG   = "#ffffff"
+BLACK      = "#000000"
 GOLD       = "#c9a84c"
-SILVER     = "#64748b"
-WHITE_TXT  = "#1e293b"
-GRID_COLOR = "#f1f5f9"
-LINE_COLOR = "#cbd5e1"
 
 FTIR_STYLE = dict(
-    mirror=True, ticks='outside', showline=True,
-    linecolor=LINE_COLOR, linewidth=1.5,
-    showgrid=True, gridcolor=GRID_COLOR, gridwidth=1,
+    mirror=True, 
+    ticks='inside', 
+    showline=True,
+    linecolor=BLACK, 
+    linewidth=2,
+    showgrid=False,   # Strict NO GRIDLINES
     zeroline=False,
-    title_font=dict(family="IBM Plex Sans", size=13, color=WHITE_TXT),
-    tickfont=dict(family="IBM Plex Mono", size=11, color=SILVER),
-    tickwidth=1.5, ticklen=5, tickcolor=LINE_COLOR,
+    title_font=dict(family="Arial", size=18, color=BLACK),
+    tickfont=dict(family="Arial", size=14, color=BLACK),
+    tickwidth=2, 
+    ticklen=6, 
+    tickcolor=BLACK,
 )
 
+JOURNAL_CONFIG = {
+    # High resolution export scale (approx 500-600 DPI)
+    'toImageButtonOptions': {'format': 'png', 'filename': 'FTIR_Journal_Plot', 'scale': 5},
+    'displayModeBar': True,
+    'displaylogo': False,
+    'modeBarButtonsToRemove': ['select2d', 'lasso2d'],
+}
+
 PALETTE = [
-    "#0b1120", "#3a7bd5", "#c9a84c", "#e05252",
-    "#3db87a", "#9b59b6", "#e67e22", "#1abc9c",
-    "#e74c3c", "#f39c12", "#2980b9", "#27ae60",
+    "#000000", "#d62728", "#1f77b4", "#2ca02c", 
+    "#ff7f0e", "#9467bd", "#8c564b", "#e377c2",
+    "#7f7f7f", "#bcbd22", "#17becf"
 ]
 
 POLYMER_DB = {
@@ -693,11 +703,12 @@ if not master.empty:
             nudge = (plot_y.max() - plot_y.min()) * 0.08
             label_y_pos = current_baseline + local_y + (nudge if not is_transmittance else -nudge)
 
+            # Trace Name Label (Journal Style)
             fig.add_annotation(
                 x=anchor_x, y=label_y_pos, 
-                text=f"<b>{name}</b>", showarrow=False,
+                text=f"{name}", showarrow=False,
                 xanchor='left', yanchor='bottom' if not is_transmittance else 'top',
-                font=dict(family="IBM Plex Sans", size=13, color=color)
+                font=dict(family="Arial", size=14, color=color)
             )
 
             valid_peaks = []
@@ -713,16 +724,16 @@ if not master.empty:
                 stagger_dist = 25 if p_idx % 2 != 0 else 0
                 current_ay = (arrow_direction + stagger_dist) if is_transmittance else (arrow_direction - stagger_dist)
 
+                # Peak Annotation (Journal Style)
                 fig.add_annotation(
                     x=p_data["wn"], y=p_data["py"], 
-                    text=f"<b>{p_data['label']}</b>", 
+                    text=f"{p_data['label']}", 
                     showarrow=True, 
-                    arrowhead=1, arrowsize=1, arrowwidth=1.2, arrowcolor="#64748b",
+                    arrowhead=1, arrowsize=1, arrowwidth=1.5, arrowcolor=BLACK,
                     ay=current_ay, ax=0, 
-                    standoff=8, 
-                    font=dict(family="IBM Plex Mono", size=11, color=WHITE_TXT),
-                    bgcolor="rgba(255, 255, 255, 0.85)", 
-                    bordercolor="#e2e8f0", borderpad=3
+                    standoff=5, 
+                    font=dict(family="Arial", size=12, color=BLACK),
+                    bgcolor=PAPER_BG, bordercolor=BLACK, borderwidth=1, borderpad=3
                 )
             
             spectrum_height = plot_y.max() - plot_y.min() if not is_transmittance else 100
@@ -737,7 +748,7 @@ if not master.empty:
             yaxis=dict(title=f"<b>{display_mode} (Stacked)</b>", showticklabels=False, **FTIR_STYLE),
             margin=dict(l=50, r=50, t=50, b=50)
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, config=JOURNAL_CONFIG)
 
     # ---------------------------
     # TAB 2: 2ND DERIVATIVE
@@ -780,9 +791,9 @@ if not master.empty:
 
                 fig_deriv.add_annotation(
                     x=anchor_x_deriv, y=label_y_pos_deriv, 
-                    text=f"<b>{name}</b>", showarrow=False,
+                    text=f"{name}", showarrow=False,
                     xanchor='left', yanchor='bottom',
-                    font=dict(family="IBM Plex Sans", size=13, color=color)
+                    font=dict(family="Arial", size=14, color=color)
                 )
 
                 total_height = (amp_max - amp_min)
@@ -796,7 +807,7 @@ if not master.empty:
             yaxis=dict(title="<b>d²A/dν² (Stacked)</b>", showticklabels=False, **FTIR_STYLE),
             margin=dict(l=50, r=50, t=50, b=50)
         )
-        st.plotly_chart(fig_deriv, use_container_width=True)
+        st.plotly_chart(fig_deriv, use_container_width=True, config=JOURNAL_CONFIG)
 
     # ---------------------------
     # TAB 3: PEAK SUMMARY TABLE
@@ -854,13 +865,13 @@ if not master.empty:
         y = df["Absorbance_Norm"].values
         
         fig_fit = go.Figure()
-        fig_fit.add_trace(go.Scatter(x=x, y=y, mode="lines", name="Processed Signal", line=dict(color=WHITE_TXT)))
+        fig_fit.add_trace(go.Scatter(x=x, y=y, mode="lines", name="Processed Signal", line=dict(color=BLACK, width=2)))
         
         peaks = detect_peaks(y, prom=0.03, dist=20)
         if len(peaks) > 0:
             fig_fit.add_trace(go.Scatter(
                 x=x[peaks], y=y[peaks], mode="markers",
-                marker=dict(size=10, color="#e05252", symbol="x", line=dict(width=2, color="#e05252")), name="Detected Peaks"
+                marker=dict(size=8, color="#e05252", symbol="x", line=dict(width=1.5, color="#e05252")), name="Detected Peaks"
             ))
             
             peaks_to_fit = peaks[:fit_count]
@@ -879,10 +890,10 @@ if not master.empty:
             plot_bgcolor=PLOT_BG, paper_bgcolor=PAPER_BG,
             xaxis=dict(title="<b>Wavenumber (cm⁻¹)</b>", range=[4000, 400], autorange="reversed", **FTIR_STYLE),
             yaxis=dict(title="<b>Absorbance</b>", **FTIR_STYLE),
-            height=500, margin=dict(l=40, r=40, t=40, b=40),
-            legend=dict(bgcolor="rgba(255,255,255,0.9)", bordercolor=LINE_COLOR, borderwidth=1)
+            height=550, margin=dict(l=60, r=40, t=40, b=60),
+            legend=dict(bgcolor=WHITE, bordercolor=BLACK, borderwidth=1.5, font=dict(family="Arial", size=12, color=BLACK))
         )
-        st.plotly_chart(fig_fit, use_container_width=True)
+        st.plotly_chart(fig_fit, use_container_width=True, config=JOURNAL_CONFIG)
 
     # ---------------------------
     # TAB 5: PCA CLUSTERING
@@ -917,14 +928,15 @@ if not master.empty:
             )
             fig_pca.update_traces(
                 textposition='top center', 
-                marker=dict(size=14, color=GOLD, line=dict(color=WHITE_TXT, width=1.5)),
-                textfont=dict(family="IBM Plex Sans", size=12, color=WHITE_TXT)
+                marker=dict(size=12, color=BLACK, line=dict(color=BLACK, width=1)),
+                textfont=dict(family="Arial", size=14, color=BLACK)
             )
             fig_pca.update_layout(
                 plot_bgcolor=PLOT_BG, paper_bgcolor=PAPER_BG, height=600,
+                margin=dict(l=60, r=60, t=40, b=60),
                 xaxis=FTIR_STYLE, yaxis=FTIR_STYLE
             )
-            st.plotly_chart(fig_pca, use_container_width=True)
+            st.plotly_chart(fig_pca, use_container_width=True, config=JOURNAL_CONFIG)
 
     # ---------------------------
     # TAB 6: SPECTRAL MATCHING
@@ -952,7 +964,7 @@ if not master.empty:
                 results = match_spectrum(library[sample_target], library)
                 matches = [r for r in results if r[0] != sample_target]
                 
-                st.markdown("<br><h4 style='color:#1e293b;font-family:IBM Plex Sans;'>Top Matches</h4>", unsafe_allow_html=True)
+                st.markdown("<br><h4 style='color:#1e293b;font-family:Arial;'>Top Matches</h4>", unsafe_allow_html=True)
                 for r in matches:
                     sim_score = float(r[1])
                     sim_pct = sim_score * 100
@@ -963,15 +975,20 @@ if not master.empty:
                 if matches:
                     top_match_name = matches[0][0]
                     fig_match = go.Figure()
-                    fig_match.add_trace(go.Scatter(x=common_x, y=library[sample_target], name=f"Target: {sample_target}", line=dict(color=WHITE_TXT, width=2)))
+                    fig_match.add_trace(go.Scatter(x=common_x, y=library[sample_target], name=f"Target: {sample_target}", line=dict(color=BLACK, width=2)))
                     fig_match.add_trace(go.Scatter(x=common_x, y=library[top_match_name], name=f"Match: {top_match_name}", line=dict(dash='dash', color=GOLD, width=2)))
                     fig_match.update_layout(
                         xaxis=dict(title="<b>Wavenumber (cm⁻¹)</b>", autorange="reversed", **FTIR_STYLE),
                         yaxis=dict(title="<b>Absorbance</b>", **FTIR_STYLE),
-                        plot_bgcolor=PLOT_BG, paper_bgcolor=PAPER_BG, height=450,
-                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, bgcolor="rgba(255,255,255,0.9)")
+                        plot_bgcolor=PLOT_BG, paper_bgcolor=PAPER_BG, height=500,
+                        margin=dict(l=60, r=40, t=40, b=60),
+                        legend=dict(
+                            orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, 
+                            bgcolor=WHITE, bordercolor=BLACK, borderwidth=1.5,
+                            font=dict(family="Arial", size=12, color=BLACK)
+                        )
                     )
-                    st.plotly_chart(fig_match, use_container_width=True)
+                    st.plotly_chart(fig_match, use_container_width=True, config=JOURNAL_CONFIG)
 
     # ---------------------------
     # TAB 7: DATA MATRIX
