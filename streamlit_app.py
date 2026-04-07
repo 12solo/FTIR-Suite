@@ -1,8 +1,9 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import plotly.graph_objects as go
 import plotly.express as px
+import plotly.graph_objects as go
+from scipy import stats
 from scipy.signal import savgol_filter, find_peaks
 from scipy.optimize import curve_fit
 from scipy import sparse
@@ -11,11 +12,400 @@ from sklearn.decomposition import PCA
 from sklearn.metrics.pairwise import cosine_similarity
 import os
 import re
+import io
+import base64
 
-# --- 1. Page Configuration ---
-st.set_page_config(page_title="Solomon FTIR Pro Suite 5.0", layout="wide", page_icon="SR.png")
+# ==========================================
+# PAGE CONFIG — must be first Streamlit call
+# ==========================================
+st.set_page_config(
+    page_title="FTIR Pro Suite | Solomon Scientific",
+    page_icon="SR.png",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-# --- 2. Advanced Mathematical Functions ---
+# ==========================================
+# GLOBAL CUSTOM CSS — Full Light Theme
+# ==========================================
+st.markdown("""
+<style>
+/* ── Google Fonts ─────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+
+/* ── CSS Variables ────────────────────────────── */
+:root {
+    /* Brand Colors */
+    --navy:       #0b1120;
+    --navy-mid:   #111827;
+    --navy-light: #1a2540;
+    --gold:       #c9a84c;
+    --gold-light: #e2c97e;
+    --gold-dim:   #9c7a32;
+    
+    /* Light Mode Colors */
+    --bg-white:   #ffffff;
+    --bg-offwhite:#f8fafc;
+    --text-dark:  #1e293b;
+    --text-muted: #64748b;
+    --border-light:#e2e8f0;
+    
+    --accent:     #3a7bd5;
+    --red:        #e05252;
+    --green:      #3db87a;
+    
+    --font-head:  'Playfair Display', Georgia, serif;
+    --font-mono:  'IBM Plex Mono', 'Courier New', monospace;
+    --font-body:  'IBM Plex Sans', 'Segoe UI', sans-serif;
+}
+
+/* ── Base & Body ──────────────────────────────── */
+html, body, [class*="css"] {
+    font-family: var(--font-body);
+    color: var(--text-dark);
+}
+.stApp {
+    background: var(--bg-white);
+}
+.stApp::before { display: none; }
+
+/* ── Sidebar (Pure White & User Friendly) ─────── */
+[data-testid="stSidebar"] {
+    background: #ffffff !important;
+    border-right: 1px solid var(--border-light);
+}
+
+/* Fixed material icon "pooping text" bug */
+[data-testid="stSidebar"] .stMarkdown,
+[data-testid="stSidebar"] label,
+[data-testid="stSidebar"] p {
+    color: var(--text-dark) !important;
+    font-family: var(--font-body);
+}
+.material-symbols-rounded,
+[data-testid="stIconMaterial"] {
+    font-family: "Material Symbols Rounded" !important;
+}
+
+[data-testid="stSidebar"] h1,
+[data-testid="stSidebar"] h2,
+[data-testid="stSidebar"] h3 {
+    color: var(--gold-dim) !important;
+    font-weight: 700;
+    font-size: 0.75rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+}
+[data-testid="stSidebar"] hr { border-color: var(--border-light); margin: 1rem 0; }
+
+/* Sidebar Inputs */
+[data-testid="stSidebar"] input[type="text"],
+[data-testid="stSidebar"] input[type="number"],
+[data-testid="stSidebar"] textarea,
+[data-testid="stSidebar"] select {
+    background: var(--bg-white) !important;
+    border: 1px solid var(--border-light) !important;
+    border-radius: 4px !important;
+    color: var(--text-dark) !important;
+    font-family: var(--font-mono) !important;
+    font-size: 0.82rem !important;
+}
+
+/* File Uploader Dropzone */
+[data-testid="stFileUploadDropzone"] {
+    background-color: var(--bg-white) !important;
+    border: 2px dashed #cbd5e1 !important;
+    border-radius: 6px !important;
+    padding: 1rem !important;
+}
+[data-testid="stFileUploadDropzone"]:hover {
+    border-color: var(--gold) !important;
+    background-color: var(--bg-offwhite) !important;
+}
+
+/* ── Main Area Inputs ─────────────────────────── */
+.stSelectbox > div > div,
+.stTextInput > div > div > input,
+.stNumberInput > div > div > input {
+    background: var(--bg-white) !important;
+    border: 1px solid var(--border-light) !important;
+    border-radius: 4px !important;
+    color: var(--text-dark) !important;
+    font-family: var(--font-mono) !important;
+    font-size: 0.82rem !important;
+}
+.stSelectbox > div > div:hover,
+.stTextInput > div > div > input:focus {
+    border-color: var(--gold) !important;
+    box-shadow: 0 0 0 1px var(--gold-dim) !important;
+}
+
+/* ── Buttons ──────────────────────────────────── */
+.stButton > button {
+    background: linear-gradient(135deg, var(--gold-dim), var(--gold)) !important;
+    color: var(--navy) !important;
+    border: none !important;
+    border-radius: 3px !important;
+    font-family: var(--font-body) !important;
+    font-weight: 600 !important;
+    font-size: 0.78rem !important;
+    letter-spacing: 0.08em !important;
+    text-transform: uppercase !important;
+    padding: 0.45rem 1rem !important;
+    transition: all 0.2s ease !important;
+}
+.stButton > button:hover {
+    background: linear-gradient(135deg, var(--gold), var(--gold-light)) !important;
+    box-shadow: 0 4px 15px rgba(201,168,76,0.3) !important;
+    transform: translateY(-1px) !important;
+}
+.stButton > button[kind="primary"] {
+    background: linear-gradient(135deg, #8b1a1a, var(--red)) !important;
+    color: white !important;
+}
+
+/* Download buttons */
+[data-testid="stDownloadButton"] > button {
+    background: var(--bg-offwhite) !important;
+    color: var(--navy) !important;
+    border: 1px solid var(--border-light) !important;
+    border-radius: 3px !important;
+    font-weight: 600 !important;
+}
+[data-testid="stDownloadButton"] > button:hover {
+    background: #ffffff !important;
+    border-color: var(--gold) !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05) !important;
+}
+
+/* ── Tabs ─────────────────────────────────────── */
+[data-testid="stTabs"] [role="tablist"] {
+    background: var(--bg-offwhite);
+    border-bottom: 1px solid var(--border-light);
+    gap: 0; padding: 0;
+}
+[data-testid="stTabs"] [role="tab"] {
+    color: var(--text-muted) !important;
+    font-family: var(--font-body) !important;
+    font-size: 0.78rem !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.06em !important;
+    text-transform: uppercase !important;
+    padding: 0.7rem 1.2rem !important;
+    border-bottom: 2px solid transparent !important;
+}
+[data-testid="stTabs"] [role="tab"]:hover {
+    color: var(--navy) !important;
+    background: rgba(0,0,0,0.02) !important;
+}
+[data-testid="stTabs"] [role="tab"][aria-selected="true"] {
+    color: var(--navy) !important;
+    border-bottom-color: var(--gold) !important;
+    background: var(--bg-white) !important;
+}
+
+/* ── DataFrames ───────────────────────────────── */
+[data-testid="stDataFrame"] {
+    border: 1px solid var(--border-light) !important;
+    border-radius: 6px !important;
+    background: var(--bg-white) !important;
+}
+[data-testid="stDataFrame"] th {
+    background: var(--bg-offwhite) !important;
+    color: var(--navy) !important;
+    border-bottom: 1px solid var(--border-light) !important;
+}
+[data-testid="stDataFrame"] td {
+    color: var(--text-dark) !important;
+}
+
+/* ── Expanders ────────────────────────────────── */
+[data-testid="stExpander"] {
+    border: 1px solid var(--border-light) !important;
+    border-radius: 4px !important;
+    background: var(--bg-white) !important;
+}
+[data-testid="stExpander"] summary {
+    color: var(--navy) !important;
+    font-weight: 600 !important;
+}
+
+/* ── Text Area & Selectors ────────────────────── */
+.stTextArea textarea {
+    background: var(--bg-white) !important;
+    border: 1px solid var(--border-light) !important;
+    color: var(--text-dark) !important;
+}
+[data-baseweb="tag"] {
+    background: var(--bg-offwhite) !important;
+    border: 1px solid var(--border-light) !important;
+}
+[data-baseweb="tag"] span { color: var(--navy) !important; }
+
+/* ── Alerts ───────────────────────────────────── */
+[data-testid="stAlert"] { color: var(--text-dark) !important; }
+</style>
+""", unsafe_allow_html=True)
+
+
+# ==========================================
+# HELPER COMPONENTS
+# ==========================================
+def get_base64_of_bin_file(bin_file):
+    with open(bin_file, 'rb') as f:
+        data = f.read()
+    return base64.b64encode(data).decode()
+
+def render_header():
+    logo_path = "SR.png"
+    if os.path.exists(logo_path):
+        img_b64 = get_base64_of_bin_file(logo_path)
+        icon_html = f'<img src="data:image/png;base64,{img_b64}" style="width: 54px; height: 54px; border-radius: 8px; object-fit: contain; box-shadow: 0 4px 20px rgba(0,0,0,0.5); flex-shrink: 0; background: white;">'
+    else:
+        icon_html = '<div style="width: 54px; height: 54px; background: linear-gradient(135deg, #9c7a32, #c9a84c); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; box-shadow: 0 4px 20px rgba(0,0,0,0.3); flex-shrink: 0;">🔬</div>'
+
+    st.markdown(f"""
+    <div style="
+        background: linear-gradient(135deg, #0b1120 0%, #0f1a2e 100%);
+        padding: 1.5rem 2rem;
+        border-radius: 8px;
+        border: 1px solid rgba(201,168,76,0.3);
+        margin-bottom: 1.5rem;
+        margin-top: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    ">
+        {icon_html}
+        <div>
+            <div style="
+                font-family: 'Playfair Display', Georgia, serif;
+                font-size: 1.75rem;
+                font-weight: 700;
+                color: #f0f4fb;
+                letter-spacing: 0.01em;
+                line-height: 1.1;
+            ">FTIR Pro Suite <span style="color:#c9a84c;">5.0</span></div>
+            <div style="
+                font-family: 'IBM Plex Sans', sans-serif;
+                font-size: 0.72rem;
+                color: #a8b4c8;
+                letter-spacing: 0.2em;
+                text-transform: uppercase;
+                margin-top: 2px;
+            ">Spectroscopy Analysis Suite &nbsp;·&nbsp; Solomon Scientific &nbsp;·&nbsp; © 2026</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+def metric_card(label, value, unit="", delta=None):
+    delta_html = ""
+    if delta is not None:
+        color = "#3db87a" if delta >= 0 else "#e05252"
+        arrow = "▲" if delta >= 0 else "▼"
+        delta_html = f'<div style="color:{color};font-size:0.7rem;margin-top:2px;">{arrow} {abs(delta):.3f}</div>'
+    return f"""
+    <div style="
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 1rem 1.25rem;
+        border-top: 3px solid #c9a84c;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+    ">
+        <div style="font-family:'IBM Plex Sans',sans-serif;font-size:0.68rem;color:#64748b;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:4px;font-weight:600;">{label}</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:1.35rem;color:#1e293b;font-weight:600;">{value}<span style="font-size:0.7rem;color:#64748b;margin-left:4px;">{unit}</span></div>
+        {delta_html}
+    </div>
+    """
+
+def section_title(text, icon=""):
+    st.markdown(f"""
+    <div style="
+        display:flex; align-items:center; gap:0.6rem;
+        background: linear-gradient(90deg, #0b1120 0%, #1a2540 100%);
+        padding: 0.6rem 1.25rem;
+        border-radius: 6px;
+        border-left: 4px solid #c9a84c;
+        margin: 1.5rem 0 1rem 0;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    ">
+        <span style="font-size:1.1rem; color:#f0f4fb;">{icon}</span>
+        <span style="
+            font-family:'IBM Plex Sans',sans-serif;
+            font-size:0.8rem;
+            font-weight:600;
+            color:#f0f4fb;
+            letter-spacing:0.15em;
+            text-transform:uppercase;
+        ">{text}</span>
+    </div>
+    """, unsafe_allow_html=True)
+
+def info_box(text, kind="info"):
+    colors = {
+        "info":    ("#3a7bd5", "rgba(58,123,213,0.08)"),
+        "success": ("#3db87a", "rgba(61,184,122,0.08)"),
+        "warning": ("#c9a84c", "rgba(201,168,76,0.08)"),
+        "error":   ("#e05252", "rgba(224,82,82,0.08)"),
+    }
+    border, bg = colors.get(kind, colors["info"])
+    icon = {"info": "ℹ", "success": "✓", "warning": "⚠", "error": "✕"}.get(kind, "ℹ")
+    st.markdown(f"""
+    <div style="
+        background:{bg}; border-left:4px solid {border};
+        border-radius:4px; padding:0.75rem 1rem;
+        font-family:'IBM Plex Sans',sans-serif; font-size:0.85rem; color:#334155;
+        margin:0.5rem 0; font-weight:500;
+    "><span style="color:{border};margin-right:0.5rem;font-weight:bold;">{icon}</span>{text}</div>
+    """, unsafe_allow_html=True)
+
+def render_sidebar_brand():
+    logo_path = "SR.png"
+    if os.path.exists(logo_path):
+        img_b64 = get_base64_of_bin_file(logo_path)
+        icon_html = f'<img src="data:image/png;base64,{img_b64}" style="width: 52px; height: 52px; margin: 0 auto 0.75rem auto; border-radius: 10px; display: block; box-shadow: 0 4px 12px rgba(0,0,0,0.1); object-fit: contain; background: white;">'
+    else:
+        icon_html = '<div style="width:52px; height:52px; margin:0 auto 0.75rem auto; background:linear-gradient(135deg,#9c7a32,#c9a84c); border-radius:10px; display:flex;align-items:center;justify-content:center; font-size:1.5rem; box-shadow:0 4px 12px rgba(0,0,0,0.1);">🔬</div>'
+
+    st.markdown(f"""
+    <div style="padding: 1.25rem 0 0.5rem 0; text-align:center;">
+        {icon_html}
+        <div style="
+            font-family:'IBM Plex Sans',sans-serif;
+            font-size:0.65rem;
+            color:#9c7a32;
+            letter-spacing:0.2em;
+            text-transform:uppercase;
+            margin-bottom:4px;
+        ">Solomon Scientific</div>
+        <div style="
+            font-family:'Playfair Display',Georgia,serif;
+            font-size:1.1rem;
+            font-weight:700;
+            color:#1e293b;
+        ">FTIR Pro Suite <span style="color:#c9a84c;">5.0</span></div>
+        <div style="
+            margin-top:0.75rem;
+            padding-top:0.75rem;
+            border-top:1px solid #e2e8f0;
+            font-family:'IBM Plex Sans',sans-serif;
+            font-size:0.68rem;
+            color:#64748b;
+        ">Advanced Spectroscopy Tools<br>
+        <a href='mailto:your.solomon.duf@gmail.com'
+           style='color:#9c7a32;text-decoration:none;'>
+            ✉ Contact Developer
+        </a>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+
+# ==========================================
+# ADVANCED MATH & UTILS
+# ==========================================
 def baseline_als(y, lam=1e5, p=0.01, niter=10):
     L = len(y)
     D = sparse.diags([1, -2, 1], [0, 1, 2], shape=(L-2, L))
@@ -45,60 +435,44 @@ def match_spectrum(sample, library):
 def clean_name(filename):
     return os.path.splitext(filename)[0]
 
-# --- 3. Database & Styles ---
+# ==========================================
+# PLOTLY THEME & DATABASE
+# ==========================================
+PLOT_BG    = "#ffffff"
+PAPER_BG   = "#ffffff"
+GOLD       = "#c9a84c"
+SILVER     = "#64748b"
+WHITE_TXT  = "#1e293b"
+GRID_COLOR = "#f1f5f9"
+LINE_COLOR = "#cbd5e1"
+
 FTIR_STYLE = dict(
-    showline=True, mirror=True, ticks='outside', 
-    linecolor='black', linewidth=2.5,
-    title_font=dict(family="Arial", size=18, color="black"),
-    tickfont=dict(family="Arial", size=14, color="black"),
-    showgrid=False,
+    mirror=True, ticks='outside', showline=True,
+    linecolor=LINE_COLOR, linewidth=1.5,
+    showgrid=True, gridcolor=GRID_COLOR, gridwidth=1,
+    zeroline=False,
+    title_font=dict(family="IBM Plex Sans", size=13, color=WHITE_TXT),
+    tickfont=dict(family="IBM Plex Mono", size=11, color=SILVER),
+    tickwidth=1.5, ticklen=5, tickcolor=LINE_COLOR,
 )
+
+PALETTE = [
+    "#0b1120", "#3a7bd5", "#c9a84c", "#e05252",
+    "#3db87a", "#9b59b6", "#e67e22", "#1abc9c",
+    "#e74c3c", "#f39c12", "#2980b9", "#27ae60",
+]
 
 POLYMER_DB = {
     "TPV (PP/EPDM)": {
-        # --- Aliphatic stretching ---
-        2950: "CH3 asym stretch (PP-rich phase)",
-        2918: "CH2 asym stretch (EPDM/PP backbone)",
-        2849: "CH2 sym stretch (EPDM/PP backbone)",
-
-        # --- Bending ---
-        1455: "CH2 bending (mixed phase)",
-        1376: "CH3 symmetric bend (PP indicator)",
-
-        # --- PP crystalline phase markers ---
-        1167: "C–C stretch / CH wag (PP crystalline)",
-        997: "CH3 rocking (isotactic PP crystallinity marker)",
-        973: "CH3 rocking (PP helical structure)",
-        841: "CH2 rocking (PP crystalline phase)",
-
-        # --- EPDM-specific ---
-        720: "CH2 rocking (long methylene sequences – EPDM)",
-
-        # --- Optional weak/diagnostic ---
-        1640: "C=C (residual unsaturation – EPDM, weak)"
+        2950: "CH3 asym (PP)", 2918: "CH2 asym (Backbone)", 2849: "CH2 sym (Backbone)",
+        1455: "CH2 bend", 1376: "CH3 sym (PP)", 1167: "C-C/CH wag (PP cryst)",
+        997: "CH3 rock (Isotactic)", 973: "CH3 rock (Helical)", 841: "CH2 rock (PP cryst)",
+        720: "CH2 rock (EPDM)", 1640: "C=C (EPDM unsat)"
     },
-
     "Peroxide Cured EPDM": {
-        # --- Backbone ---
-        2918: "CH2 asym stretch",
-        2849: "CH2 sym stretch",
-        1460: "CH2 bending",
-        1375: "CH3 bending",
-        720: "CH2 rocking (long chains)",
-
-        # --- Crosslinking / peroxide effects ---
-        1100: "C–O–C (ether crosslinks from peroxide)",
-        1060: "C–O stretch (oxidative crosslink structures)",
-
-        # --- Oxidation products ---
-        1735: "C=O (ketone/aldehyde from peroxide oxidation)",
-        1715: "C=O (carboxylic acid / ester oxidation products)",
-
-        # --- Residual unsaturation ---
-        1640: "C=C stretch (residual diene, weak)",
-
-        # --- Hydroperoxide / aging markers ---
-        3400: "O–H (hydroperoxide / oxidation, broad)"
+        2918: "CH2 asym", 2849: "CH2 sym", 1460: "CH2 bend", 1375: "CH3 bend",
+        720: "CH2 rock", 1100: "C-O-C (Ether cross)", 1060: "C-O str (Oxid)",
+        1735: "C=O (Ketone/Ald)", 1715: "C=O (Acid/Ester)", 1640: "C=C", 3400: "O-H (Oxid)"
     },
     "PLA": {1750: "C=O (Ester)", 1180: "C-O-C", 1080: "C-O"},
     "PBAT": {1715: "C=O (Arom.)", 1270: "C-O", 720: "CH2-bend"},
@@ -126,39 +500,21 @@ POLYMER_DB = {
     "General / Unknown": {3300: "O-H / N-H", 2920: "C-H", 2250: "C≡N", 1720: "C=O", 1640: "C=C / H2O", 1050: "C-O"}
 }
 
-# Initialize Session States
+# ==========================================
+# SESSION STATE
+# ==========================================
 if 'ftir_master_df' not in st.session_state:
     st.session_state['ftir_master_df'] = pd.DataFrame()
 if 'spectra_storage' not in st.session_state:
     st.session_state['spectra_storage'] = {}
 
-# --- 4. UI Layout ---
-title_col1, title_col2 = st.columns([1, 15])
-with title_col1:
-    if os.path.exists("SR.png"):
-        st.image("SR.png", width=60)
-with title_col2:
-    st.title("Solomon FTIR Pro Suite 5.0")
-st.markdown("---")
-
+# ==========================================
+# SIDEBAR
+# ==========================================
 with st.sidebar:
-    # Logo and App Name
-    if os.path.exists("SR.png"):
-        st.image("SR.png", width=120) 
-    
-    # Professional Developer Card
-    st.markdown("""
-        <div style='background-color: #f8f9fa; padding: 15px; border-radius: 10px; margin-bottom: 20px; text-align: center; border: 1px solid #e6e6e6;'>
-            <p style='color: #333333; font-size: 1em; font-weight: bold; margin-bottom: 0px;'>DEVELOPED BY SOLOMON</p>
-            <p style='color: #666666; font-size: 0.85em; margin-top: 2px; margin-bottom: 10px;'>FTIR Pro Suite v5.0</p>
-            <hr style='margin: 10px 0; border: 0; border-top: 1px solid #ddd;'>
-            <a href='mailto:your.email@example.com' style='color: #0066cc; text-decoration: none; font-size: 0.85em; font-weight: 500;'>✉️ Contact Developer</a>
-            <br>
-            <p style='color: #999999; font-size: 0.7em; margin-top: 10px; margin-bottom: 0px;'><i>For Research & Academic Use Only<br>© 2024</i></p>
-        </div>
-    """, unsafe_allow_html=True)
-    
-    st.header("⚙️ Data Formatting")
+    render_sidebar_brand()
+
+    st.markdown("### 1 · Data Formatting")
     raw_data_format = st.radio("Uploaded Data Format", ["Absorbance", "Transmittance (%)"])
     display_mode = st.radio("Output Display Mode", ["Absorbance", "Transmittance (%)"])
     
@@ -170,129 +526,147 @@ with st.sidebar:
             als_lam = st.selectbox("Baseline Stiffness (Lambda)", [1e3, 1e4, 1e5, 1e6], index=2)
             als_p = st.selectbox("Baseline Asymmetry (p)", [0.001, 0.01, 0.05, 0.1], index=1)
 
-    st.header("🎨 Plot Formatting")
+    st.markdown("<hr>", unsafe_allow_html=True)
+    st.markdown("### 2 · Plot Formatting")
     stack_offset = st.slider("Vertical Offset Cushion", 0.0, 1.0, 0.2, step=0.05)
     line_w = st.slider("Line Weight", 1.0, 4.0, 2.0)
     selected_ref = st.multiselect("Label Peaks (DB)", list(POLYMER_DB.keys()), default=["General / Unknown"])
     
-    st.header("📂 Data Input")
-    group_id = st.text_input("Sample Group ID", "Experimental_Batch")
-    files = st.file_uploader("Upload FTIR Data", accept_multiple_files=True)
+    st.markdown("<hr>", unsafe_allow_html=True)
+    st.markdown("### 3 · Data Input")
+    with st.form("ftir_upload_form", clear_on_submit=True):
+        group_id = st.text_input("Sample Group ID", "Experimental_Batch")
+        files = st.file_uploader("Upload FTIR Data (.csv, .txt, .xlsx)", accept_multiple_files=True)
+        submit = st.form_submit_button("⚙️ Process Batch Data", use_container_width=True)
 
-    # --- NEW: Process Batch Button ---
-    if files:
-        if st.button("⚙️ Process Batch Data", use_container_width=True):
-            for f in files:
-                name = clean_name(f.name)
-                if name not in st.session_state['spectra_storage']:
-                    with st.spinner(f"Processing {name}..."):
-                        try:
-                            # 1. ULTIMATE FILE PARSING (Handles "Fake" Excel Files)
-                            df = None
+    if submit and files:
+        for f in files:
+            name = clean_name(f.name)
+            if name not in st.session_state['spectra_storage']:
+                with st.spinner(f"Processing {name}..."):
+                    try:
+                        df = None
+                        if f.name.lower().endswith(('.xls', '.xlsx')):
+                            try:
+                                df = pd.read_excel(f, header=None)
+                            except Exception: pass 
+                        
+                        if df is None:
+                            f.seek(0)
+                            content = f.getvalue().decode('utf-8', errors='ignore').split('\n')
+                            parsed_data = []
+                            for line in content:
+                                line = line.strip()
+                                if not line: continue
+                                parts = re.split(r'[,\t;|\s]+', line)
+                                if len(parts) >= 2:
+                                    try:
+                                        val_x = float(parts[0])
+                                        val_y = float(parts[1])
+                                        parsed_data.append([val_x, val_y])
+                                    except ValueError:
+                                        pass 
                             
-                            if f.name.lower().endswith(('.xls', '.xlsx')):
-                                try:
-                                    df = pd.read_excel(f, header=None)
-                                except Exception:
-                                    pass 
-                            
-                            if df is None:
-                                f.seek(0)
-                                content = f.getvalue().decode('utf-8', errors='ignore').split('\n')
-                                parsed_data = []
-                                for line in content:
-                                    line = line.strip()
-                                    if not line: continue
-                                    parts = re.split(r'[,\t;|\s]+', line)
-                                    if len(parts) >= 2:
-                                        try:
-                                            val_x = float(parts[0])
-                                            val_y = float(parts[1])
-                                            parsed_data.append([val_x, val_y])
-                                        except ValueError:
-                                            pass 
+                            if not parsed_data:
+                                raise ValueError("Could not extract any numerical data from file.")
                                 
-                                if not parsed_data:
-                                    raise ValueError("Could not extract any numerical data from file.")
-                                    
-                                df = pd.DataFrame(parsed_data)
+                            df = pd.DataFrame(parsed_data)
 
-                            # --- ROBUST CLEANUP ---
-                            df = df.iloc[:, :2] 
-                            df.columns = ['Wavenumber', 'Raw_Intensity']
-                            
-                            df['Wavenumber'] = pd.to_numeric(df['Wavenumber'], errors='coerce')
-                            df['Raw_Intensity'] = pd.to_numeric(df['Raw_Intensity'], errors='coerce')
-                            
-                            df = df.dropna().sort_values('Wavenumber', ascending=True).reset_index(drop=True)
-                            # ----------------------
+                        df = df.iloc[:, :2] 
+                        df.columns = ['Wavenumber', 'Raw_Intensity']
+                        df['Wavenumber'] = pd.to_numeric(df['Wavenumber'], errors='coerce')
+                        df['Raw_Intensity'] = pd.to_numeric(df['Raw_Intensity'], errors='coerce')
+                        df = df.dropna().sort_values('Wavenumber', ascending=True).reset_index(drop=True)
 
-                            # 2. CONVERT TO ABSORBANCE FOR MATH
-                            raw_y = df['Raw_Intensity'].values
-                            if raw_data_format == "Transmittance (%)":
-                                raw_y = np.clip(raw_y, a_min=0.001, a_max=None)
-                                abs_y = 2 - np.log10(raw_y)
-                            else:
-                                abs_y = raw_y.copy()
+                        raw_y = df['Raw_Intensity'].values
+                        if raw_data_format == "Transmittance (%)":
+                            raw_y = np.clip(raw_y, a_min=0.001, a_max=None)
+                            abs_y = 2 - np.log10(raw_y)
+                        else:
+                            abs_y = raw_y.copy()
 
-                            if apply_atr:
-                                abs_y = abs_y * (df['Wavenumber'].values / 1000)
+                        if apply_atr:
+                            abs_y = abs_y * (df['Wavenumber'].values / 1000)
 
-                            data_len = len(df)
-                            actual_window = smooth_val if smooth_val < data_len else (data_len - 1 if (data_len - 1) % 2 != 0 else data_len - 2)
-                            if actual_window >= 3:
-                                abs_y = savgol_filter(abs_y, actual_window, 3)
+                        data_len = len(df)
+                        actual_window = smooth_val if smooth_val < data_len else (data_len - 1 if (data_len - 1) % 2 != 0 else data_len - 2)
+                        if actual_window >= 3:
+                            abs_y = savgol_filter(abs_y, actual_window, 3)
 
-                            if apply_baseline:
-                                base = baseline_als(abs_y, lam=als_lam, p=als_p)
-                                abs_y = abs_y - base
+                        if apply_baseline:
+                            base = baseline_als(abs_y, lam=als_lam, p=als_p)
+                            abs_y = abs_y - base
 
-                            abs_y = abs_y - abs_y.min()
-                            max_val = abs_y.max()
-                            if max_val > 0:
-                                abs_y = abs_y / max_val
+                        abs_y = abs_y - abs_y.min()
+                        max_val = abs_y.max()
+                        if max_val > 0:
+                            abs_y = abs_y / max_val
 
-                            df['Absorbance_Norm'] = abs_y
+                        df['Absorbance_Norm'] = abs_y
 
-                            d_window = max(3, actual_window - 2)
-                            if d_window % 2 == 0: d_window += 1 
-                            d_poly = min(3, d_window - 1)
-                            df['2nd_Deriv'] = savgol_filter(df['Absorbance_Norm'].values, d_window, d_poly, deriv=2)
+                        d_window = max(3, actual_window - 2)
+                        if d_window % 2 == 0: d_window += 1 
+                        d_poly = min(3, d_window - 1)
+                        df['2nd_Deriv'] = savgol_filter(df['Absorbance_Norm'].values, d_window, d_poly, deriv=2)
 
-                            st.session_state['spectra_storage'][name] = df
-                            new_entry = pd.DataFrame({"Group": [group_id], "File": [name]})
-                            st.session_state['ftir_master_df'] = pd.concat([st.session_state['ftir_master_df'], new_entry], ignore_index=True)
-                            st.success(f"Successfully loaded: {name}")
+                        st.session_state['spectra_storage'][name] = df
+                        new_entry = pd.DataFrame({"Group": [group_id], "File": [name]})
+                        st.session_state['ftir_master_df'] = pd.concat([st.session_state['ftir_master_df'], new_entry], ignore_index=True)
+                        st.success(f"✓ Loaded: {name}")
 
-                        except Exception as e:
-                            st.error(f"Error processing {f.name}: {e}")
+                    except Exception as e:
+                        st.error(f"Error processing {f.name}: {e}")
 
-    # --- NEW: Reset to Clean App Button ---
-    st.markdown("---")
-    if st.button("🔄 Reset to Clean", type="primary", use_container_width=True):
-        st.session_state['ftir_master_df'] = pd.DataFrame()
-        st.session_state['spectra_storage'] = {}
-        st.rerun()
+    # --- Manage Data / Reset ---
+    if not st.session_state['ftir_master_df'].empty:
+        st.markdown("<hr>", unsafe_allow_html=True)
+        if st.button("🔄 Reset Entire Workspace", type="primary", use_container_width=True):
+            st.session_state['ftir_master_df'] = pd.DataFrame()
+            st.session_state['spectra_storage'] = {}
+            st.rerun()
 
-# --- 5. Main Dashboard View ---
+    st.markdown("""
+    <div style="padding:1rem 0 0.5rem;text-align:center;font-family:'IBM Plex Sans',sans-serif;
+                font-size:0.65rem;color:rgba(100,116,139,0.6);letter-spacing:0.1em;">
+        For Research & Academic Use Only<br>Version 5.0 Pro
+    </div>
+    """, unsafe_allow_html=True)
+
+
+# ==========================================
+# MAIN CONTENT
+# ==========================================
 master = st.session_state['ftir_master_df']
 spectra = st.session_state['spectra_storage']
 
+render_header()
+
 if not master.empty:
+    n_files = len(master)
+    n_groups = master['Group'].nunique()
+    
+    k1, k2, k3, k4 = st.columns(4)
+    k1.markdown(metric_card("Spectra Loaded", f"{n_files}", ""), unsafe_allow_html=True)
+    k2.markdown(metric_card("Sample Groups", f"{n_groups}", ""), unsafe_allow_html=True)
+    k3.markdown(metric_card("Processing Mode", "Active", ""), unsafe_allow_html=True)
+    k4.markdown(metric_card("Baseline/Smooth", "ON" if apply_baseline else "OFF", ""), unsafe_allow_html=True)
+    st.markdown("<div style='height:1rem'></div>", unsafe_allow_html=True)
+
     tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
         "📉 Primary Spectra", 
         "🔬 2nd Derivative", 
         "📋 Peak Assignments", 
-        "📈 Gaussian Deconvolution", 
+        "📈 Deconvolution", 
         "🧠 PCA Clustering", 
         "🧪 Spectral Match", 
         "📊 Data Matrix Export"
     ])
 
     # ---------------------------
-    # TAB 1: PRIMARY SPECTRA (Stacked + DB Labels)
+    # TAB 1: PRIMARY SPECTRA 
     # ---------------------------
     with tab1:
+        section_title("Stacked Primary Spectra", "📉")
         fig = go.Figure()
         current_baseline = 0.0 
         is_transmittance = display_mode == "Transmittance (%)"
@@ -304,10 +678,11 @@ if not master.empty:
             df = spectra[name]
             wavenumbers = df['Wavenumber'].values
             plot_y = 100 * (10 ** -df['Absorbance_Norm'].values) if is_transmittance else df['Absorbance_Norm'].values
+            color = PALETTE[i % len(PALETTE)]
 
             fig.add_trace(go.Scatter(
                 x=wavenumbers, y=plot_y + current_baseline,
-                mode='lines', line=dict(width=line_w), 
+                mode='lines', line=dict(width=line_w, color=color), 
                 name=name, hoverinfo="name+x+y", showlegend=False
             ))
 
@@ -322,7 +697,7 @@ if not master.empty:
                 x=anchor_x, y=label_y_pos, 
                 text=f"<b>{name}</b>", showarrow=False,
                 xanchor='left', yanchor='bottom' if not is_transmittance else 'top',
-                font=dict(family="Arial", size=13, color="black")
+                font=dict(family="IBM Plex Sans", size=13, color=color)
             )
 
             valid_peaks = []
@@ -342,21 +717,22 @@ if not master.empty:
                     x=p_data["wn"], y=p_data["py"], 
                     text=f"<b>{p_data['label']}</b>", 
                     showarrow=True, 
-                    arrowhead=1, arrowsize=1, arrowwidth=1.2, arrowcolor="#555555",
+                    arrowhead=1, arrowsize=1, arrowwidth=1.2, arrowcolor="#64748b",
                     ay=current_ay, ax=0, 
                     standoff=8, 
-                    font=dict(family="Times New Roman", size=12, color="black"),
+                    font=dict(family="IBM Plex Mono", size=11, color=WHITE_TXT),
                     bgcolor="rgba(255, 255, 255, 0.85)", 
-                    borderpad=2
+                    bordercolor="#e2e8f0", borderpad=3
                 )
             
-            spectrum_height = plot_y.max() if not is_transmittance else 100
+            spectrum_height = plot_y.max() - plot_y.min() if not is_transmittance else 100
             text_buffer = spectrum_height * 0.35 
             current_baseline += spectrum_height + scaled_offset + text_buffer
 
-        dynamic_plot_height = 600 + (len(master['File'].unique()) * 110)
+        dynamic_plot_height = max(600, 200 + (len(master['File'].unique()) * 120))
         fig.update_layout(
-            template="simple_white", height=dynamic_plot_height,
+            height=dynamic_plot_height,
+            plot_bgcolor=PLOT_BG, paper_bgcolor=PAPER_BG,
             xaxis=dict(title="<b>Wavenumber (cm⁻¹)</b>", range=[4000, 400], **FTIR_STYLE),
             yaxis=dict(title=f"<b>{display_mode} (Stacked)</b>", showticklabels=False, **FTIR_STYLE),
             margin=dict(l=50, r=50, t=50, b=50)
@@ -367,26 +743,29 @@ if not master.empty:
     # TAB 2: 2ND DERIVATIVE
     # ---------------------------
     with tab2:
+        section_title("Second Derivative Resolution", "🔬")
         with st.expander("ℹ️ How to interpret the 2nd Derivative"):
             st.markdown("""
-            **Second Derivative Spectroscopy** is a mathematical technique used to artificially enhance the resolution of your spectrum.
+            **Second Derivative Spectroscopy** enhances spectral resolution mathematically.
             
-            * **Revealing Hidden Peaks:** Broad, overlapping absorption bands often hide smaller peaks. Taking the 2nd derivative dramatically sharpens these features.
-            * **Removing Baselines:** The derivative math automatically cancels out constant (flat) and linear (slanted) baseline errors.
-            * **How to read the plot (⚠️ Important):** A peak *maximum* in your original absorbance spectrum becomes a **sharp minimum (pointing downwards)** in the 2nd derivative. Look for the lowest "valleys" on this graph!
+            * **Revealing Hidden Peaks:** Broad, overlapping absorption bands hide smaller peaks. The 2nd derivative sharpens these.
+            * **Removing Baselines:** Constant (flat) and linear (slanted) baseline errors are cancelled out.
+            * **How to read the plot (⚠️ Important):** A peak *maximum* in original absorbance becomes a **sharp minimum (pointing downwards)** in the 2nd derivative. Look for the lowest "valleys"!
             """)
 
         fig_deriv = go.Figure()
         current_deriv_baseline = 0.0
         
-        for name in master['File'].unique():
+        for i, name in enumerate(master['File'].unique()):
             df = spectra[name]
             if '2nd_Deriv' in df.columns:
                 wavenumbers = df['Wavenumber'].values
                 deriv_y = df['2nd_Deriv'].values
+                color = PALETTE[i % len(PALETTE)]
+                
                 fig_deriv.add_trace(go.Scatter(
                     x=wavenumbers, y=deriv_y + current_deriv_baseline,
-                    mode='lines', line=dict(width=1.5), name=name, showlegend=False
+                    mode='lines', line=dict(width=1.5, color=color), name=name, showlegend=False
                 ))
                 
                 amp_max = deriv_y.max()
@@ -403,7 +782,7 @@ if not master.empty:
                     x=anchor_x_deriv, y=label_y_pos_deriv, 
                     text=f"<b>{name}</b>", showarrow=False,
                     xanchor='left', yanchor='bottom',
-                    font=dict(family="Arial", size=13, color="black")
+                    font=dict(family="IBM Plex Sans", size=13, color=color)
                 )
 
                 total_height = (amp_max - amp_min)
@@ -411,7 +790,8 @@ if not master.empty:
                 current_deriv_baseline += total_height + (stack_offset * 0.1) + text_buffer_deriv
         
         fig_deriv.update_layout(
-            template="simple_white", height=600 + (len(master['File'].unique()) * 90),
+            height=max(600, 200 + (len(master['File'].unique()) * 100)),
+            plot_bgcolor=PLOT_BG, paper_bgcolor=PAPER_BG,
             xaxis=dict(title="<b>Wavenumber (cm⁻¹)</b>", range=[2000, 600], **FTIR_STYLE), 
             yaxis=dict(title="<b>d²A/dν² (Stacked)</b>", showticklabels=False, **FTIR_STYLE),
             margin=dict(l=50, r=50, t=50, b=50)
@@ -422,6 +802,7 @@ if not master.empty:
     # TAB 3: PEAK SUMMARY TABLE
     # ---------------------------
     with tab3:
+        section_title("Tabular Peak Assignments", "📋")
         summary_data = []
         is_transmittance = display_mode == "Transmittance (%)"
 
@@ -443,40 +824,43 @@ if not master.empty:
         
         if summary_data:
             summary_df = pd.DataFrame(summary_data)
-            st.dataframe(summary_df, use_container_width=True)
-            st.download_button("📥 Download Peak Summary (CSV)", summary_df.to_csv(index=False).encode('utf-8'), "Peak_Summary.csv")
+            st.dataframe(summary_df, use_container_width=True, height=400)
+            
+            csv = summary_df.to_csv(index=False).encode('utf-8')
+            st.download_button("📥 Download Peak Summary (CSV)", csv, "Peak_Summary.csv")
         else:
-            st.info("Select a Reference Library in the sidebar to generate assignments.")
+            info_box("Select a Reference Library in the sidebar to generate assignments.", "warning")
 
     # ---------------------------
     # TAB 4: GAUSSIAN DECONVOLUTION
     # ---------------------------
     with tab4:
-        st.markdown("### Peak Deconvolution & Gaussian Fitting")
+        section_title("Peak Deconvolution & Gaussian Fitting", "📈")
         
         with st.expander("ℹ️ What is Peak Deconvolution?"):
             st.markdown("""
-            **Peak Deconvolution** is the mathematical process of separating broad, overlapping spectral bands into individual, underlying peaks.
+            **Peak Deconvolution** mathematically separates broad, overlapping spectral bands into individual, underlying peaks.
             
-            * **Why Gaussian Fitting?** Infrared absorption bands naturally form bell-shaped curves (Gaussian distributions). By calculating the perfect mathematical curve to fit your raw data, we can isolate overlapping bonds.
-            * **How to read the plot:** The **red 'x' marks** show where the algorithm detected a peak crest. The **dashed lines** are the calculated Gaussian curves that best fit the actual shape of your spectrum.
+            * **Why Gaussian Fitting?** Infrared absorption bands form bell-shaped curves. Calculating the perfect curve isolates overlapping bonds.
+            * **How to read the plot:** The **red 'x' marks** show detected crests. **Dashed lines** are calculated Gaussian curves.
             """)
 
-        target_fit = st.selectbox("Select Spectrum to Fit", list(spectra.keys()))
-        fit_count = st.slider("Number of Major Peaks to Auto-Fit", 1, 10, 3)
+        colA, colB = st.columns([2, 1])
+        with colA: target_fit = st.selectbox("Select Spectrum to Fit", list(spectra.keys()))
+        with colB: fit_count = st.slider("Number of Major Peaks to Auto-Fit", 1, 10, 3)
         
         df = spectra[target_fit]
         x = df["Wavenumber"].values
         y = df["Absorbance_Norm"].values
         
         fig_fit = go.Figure()
-        fig_fit.add_trace(go.Scatter(x=x, y=y, mode="lines", name="Processed Signal", line=dict(color='black')))
+        fig_fit.add_trace(go.Scatter(x=x, y=y, mode="lines", name="Processed Signal", line=dict(color=WHITE_TXT)))
         
         peaks = detect_peaks(y, prom=0.03, dist=20)
         if len(peaks) > 0:
             fig_fit.add_trace(go.Scatter(
                 x=x[peaks], y=y[peaks], mode="markers",
-                marker=dict(size=8, color="red", symbol="x"), name="Detected Peaks"
+                marker=dict(size=10, color="#e05252", symbol="x", line=dict(width=2, color="#e05252")), name="Detected Peaks"
             ))
             
             peaks_to_fit = peaks[:fit_count]
@@ -487,14 +871,16 @@ if not master.empty:
                 try:
                     popt, _ = curve_fit(gaussian, x[idx_min:idx_max], y[idx_min:idx_max], p0=[y[p], x[p], 10])
                     curve = gaussian(x, *popt)
-                    fig_fit.add_trace(go.Scatter(x=x, y=curve, mode="lines", line=dict(dash="dash"), name=f"Fit {round(x[p],1)} cm⁻¹"))
+                    fig_fit.add_trace(go.Scatter(x=x, y=curve, mode="lines", line=dict(dash="dash", color=GOLD, width=2), name=f"Fit {round(x[p],1)} cm⁻¹"))
                 except:
                     pass
 
         fig_fit.update_layout(
-            xaxis=dict(title="Wavenumber (cm⁻¹)", range=[4000, 400], autorange="reversed", **FTIR_STYLE),
-            yaxis=dict(title="Absorbance", **FTIR_STYLE),
-            template="simple_white", height=500
+            plot_bgcolor=PLOT_BG, paper_bgcolor=PAPER_BG,
+            xaxis=dict(title="<b>Wavenumber (cm⁻¹)</b>", range=[4000, 400], autorange="reversed", **FTIR_STYLE),
+            yaxis=dict(title="<b>Absorbance</b>", **FTIR_STYLE),
+            height=500, margin=dict(l=40, r=40, t=40, b=40),
+            legend=dict(bgcolor="rgba(255,255,255,0.9)", bordercolor=LINE_COLOR, borderwidth=1)
         )
         st.plotly_chart(fig_fit, use_container_width=True)
 
@@ -502,18 +888,18 @@ if not master.empty:
     # TAB 5: PCA CLUSTERING
     # ---------------------------
     with tab5:
-        st.markdown("### Principal Component Analysis (PCA)")
+        section_title("Principal Component Analysis (PCA)", "🧠")
         
         with st.expander("ℹ️ How to interpret this PCA Plot"):
             st.markdown("""
-            **Principal Component Analysis (PCA)** is a statistical tool that takes the thousands of data points in your FTIR spectra and compresses them down to the most important underlying trends.
+            **PCA** compresses thousands of spectral data points into the most important underlying trends.
             
-            * **Spatial Clustering:** Spectra that are chemically similar will cluster close together on the graph. Spectra that are chemically distinct will be pushed far apart.
-            * **What are PC 1 and PC 2?** **PC 1** represents the direction of the *greatest variance* (the biggest differences) among all your samples. **PC 2** represents the second greatest variance.
+            * **Spatial Clustering:** Chemically similar spectra cluster together; distinct spectra are pushed apart.
+            * **What are PC 1 and PC 2?** **PC 1** represents the direction of *greatest variance* among samples. **PC 2** is the second greatest.
             """)
 
         if len(spectra) < 3:
-            st.warning("⚠️ Upload at least 3 spectra to run PCA.")
+            info_box("Upload at least 3 spectra to run PCA clustering.", "warning")
         else:
             common_x = np.linspace(4000, 400, 1000)
             matrix, labels = [], []
@@ -527,30 +913,35 @@ if not master.empty:
 
             fig_pca = px.scatter(
                 x=comps[:,0], y=comps[:,1], text=labels,
-                labels={"x": f"PC 1 ({var_ratio[0]:.1f}%)", "y": f"PC 2 ({var_ratio[1]:.1f}%)"}
+                labels={"x": f"<b>PC 1 ({var_ratio[0]:.1f}%)</b>", "y": f"<b>PC 2 ({var_ratio[1]:.1f}%)</b>"}
             )
-            fig_pca.update_traces(textposition='top center', marker=dict(size=12))
-            fig_pca.update_layout(template="simple_white", height=600)
-            fig_pca.update_xaxes(**FTIR_STYLE)
-            fig_pca.update_yaxes(**FTIR_STYLE)
+            fig_pca.update_traces(
+                textposition='top center', 
+                marker=dict(size=14, color=GOLD, line=dict(color=WHITE_TXT, width=1.5)),
+                textfont=dict(family="IBM Plex Sans", size=12, color=WHITE_TXT)
+            )
+            fig_pca.update_layout(
+                plot_bgcolor=PLOT_BG, paper_bgcolor=PAPER_BG, height=600,
+                xaxis=FTIR_STYLE, yaxis=FTIR_STYLE
+            )
             st.plotly_chart(fig_pca, use_container_width=True)
 
     # ---------------------------
     # TAB 6: SPECTRAL MATCHING
     # ---------------------------
     with tab6:
-        st.markdown("### Library Cosine Similarity")
+        section_title("Library Cosine Similarity", "🧪")
         
         with st.expander("ℹ️ How does Spectral Matching work?"):
             st.markdown("""
-            **Cosine Similarity** mathematically compares two spectra by treating their data points as multi-dimensional vectors and measuring the angle between them. 
+            **Cosine Similarity** compares two spectra by treating their data points as multi-dimensional vectors and measuring the angle between them. 
             
-            * **Why it's the standard:** It evaluates the *overall shape* and *peak alignment* of the curves. This makes it highly robust against baseline shifts or varying concentrations.
-            * **Interpretation:** A **100%** match indicates the spectral profiles are structurally identical.
+            * **Why it's the standard:** It evaluates the *overall shape* and *peak alignment*, making it highly robust against baseline shifts or concentration changes.
+            * **Interpretation:** A **100%** match indicates structurally identical spectral profiles.
             """)
             
         if len(spectra) < 2:
-            st.warning("⚠️ Upload at least 2 spectra to compare.")
+            info_box("Upload at least 2 spectra to run comparison matching.", "warning")
         else:
             common_x = np.linspace(4000, 400, 1000)
             library = {name: np.interp(common_x, df["Wavenumber"].values, df["Absorbance_Norm"].values) for name, df in spectra.items()}
@@ -561,7 +952,7 @@ if not master.empty:
                 results = match_spectrum(library[sample_target], library)
                 matches = [r for r in results if r[0] != sample_target]
                 
-                st.write("#### Top Matches")
+                st.markdown("<br><h4 style='color:#1e293b;font-family:IBM Plex Sans;'>Top Matches</h4>", unsafe_allow_html=True)
                 for r in matches:
                     sim_score = float(r[1])
                     sim_pct = sim_score * 100
@@ -572,13 +963,13 @@ if not master.empty:
                 if matches:
                     top_match_name = matches[0][0]
                     fig_match = go.Figure()
-                    fig_match.add_trace(go.Scatter(x=common_x, y=library[sample_target], name=f"Target: {sample_target}"))
-                    fig_match.add_trace(go.Scatter(x=common_x, y=library[top_match_name], name=f"Match: {top_match_name}", line=dict(dash='dash')))
+                    fig_match.add_trace(go.Scatter(x=common_x, y=library[sample_target], name=f"Target: {sample_target}", line=dict(color=WHITE_TXT, width=2)))
+                    fig_match.add_trace(go.Scatter(x=common_x, y=library[top_match_name], name=f"Match: {top_match_name}", line=dict(dash='dash', color=GOLD, width=2)))
                     fig_match.update_layout(
-                        xaxis=dict(title="Wavenumber", autorange="reversed", **FTIR_STYLE),
-                        yaxis=dict(title="Absorbance", **FTIR_STYLE),
-                        template="simple_white", height=400,
-                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+                        xaxis=dict(title="<b>Wavenumber (cm⁻¹)</b>", autorange="reversed", **FTIR_STYLE),
+                        yaxis=dict(title="<b>Absorbance</b>", **FTIR_STYLE),
+                        plot_bgcolor=PLOT_BG, paper_bgcolor=PAPER_BG, height=450,
+                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, bgcolor="rgba(255,255,255,0.9)")
                     )
                     st.plotly_chart(fig_match, use_container_width=True)
 
@@ -586,6 +977,9 @@ if not master.empty:
     # TAB 7: DATA MATRIX
     # ---------------------------
     with tab7:
+        section_title("Data Matrix Export", "📊")
+        st.markdown("<p style='color:#64748b;'>Interpolates all processed spectra onto a unified wavenumber axis for external machine learning or plotting.</p>", unsafe_allow_html=True)
+        
         common_wn = np.linspace(4000, 400, 1500)
         export_data = {"Wavenumber": common_wn}
         is_transmittance = display_mode == "Transmittance (%)"
@@ -595,12 +989,36 @@ if not master.empty:
             export_data[name] = np.interp(common_wn, df['Wavenumber'].values, output_y)
         
         matrix_df = pd.DataFrame(export_data)
+        
+        csv = matrix_df.to_csv(index=False).encode('utf-8')
         st.download_button(
             f"📥 Download Standardized Data Matrix ({display_mode})", 
-            matrix_df.to_csv(index=False).encode('utf-8'), 
+            csv, 
             f"FTIR_Matrix_{display_mode[:3]}.csv"
         )
-        st.dataframe(matrix_df.head(15))
+        st.dataframe(matrix_df.head(15), use_container_width=True)
 
 else:
-    st.info("Upload your raw data files in the sidebar to begin.")
+    # --- Empty State UI ---
+    st.markdown("""
+    <div style="
+        margin-top:3rem; padding:3rem 2rem; background:#ffffff;
+        border:1px solid #e2e8f0; box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+        border-radius:8px; text-align:center;
+    ">
+        <div style="font-size:3rem;margin-bottom:1rem;">📉</div>
+        <div style="
+            font-family:'Playfair Display',Georgia,serif;
+            font-size:1.5rem;color:#1e293b; margin-bottom:0.5rem; font-weight:700;
+        ">Ready for Spectral Analysis</div>
+        <div style="
+            font-family:'IBM Plex Sans',sans-serif;
+            font-size:0.85rem;color:#64748b;
+            max-width:480px;margin:0 auto;line-height:1.7;
+        ">
+            Upload your raw FTIR data files via the <b style="color:#c9a84c;">Data Input</b> panel
+            in the sidebar. Supports automatic baseline correction (ALS), Savitzky-Golay smoothing, 
+            2nd Derivative resolution enhancement, and PCA Clustering.
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
