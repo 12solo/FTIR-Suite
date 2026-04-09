@@ -31,7 +31,7 @@ st.set_page_config(
 st.markdown("""
 <style>
 /* ── Google Fonts ─────────────────────────────── */
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
 
 /* ── CSS Variables ────────────────────────────── */
 :root {
@@ -46,13 +46,13 @@ st.markdown("""
     /* Light Mode Colors */
     --bg-white:   #ffffff;
     --bg-offwhite:#f8fafc;
-    --text-dark:  #1a1a1a; /* Softened pure black for less eye strain */
-    --text-muted: #333333; 
-    --border-light:#cbd5e1;
+    --text-dark:  #000000; /* Pure Dark Black for normal text */
+    --text-muted: #111111; /* Almost black for secondary text */
+    --border-light:#e2e8f0;
     
     --accent:     #3a7bd5;
-    --red:        #d93838;
-    --green:      #2e9e63;
+    --red:        #e05252;
+    --green:      #3db87a;
     
     --font-head:  'Playfair Display', Georgia, serif;
     --font-mono:  'IBM Plex Mono', 'Courier New', monospace;
@@ -61,60 +61,78 @@ st.markdown("""
 
 /* ── Base & Body ──────────────────────────────── */
 html, body, [class*="css"] {
-    font-family: var(--font-body) !important;
-    font-size: 16px !important; /* Base size bumped up for readability */
+    font-family: var(--font-body);
     color: var(--text-dark);
-    line-height: 1.6 !important;
 }
 .stApp {
     background: var(--bg-white);
 }
 .stApp::before { display: none; }
 
-/* ── Sidebar ──────────────────────────────────── */
+/* ── Sidebar (Pure White & User Friendly) ─────── */
 [data-testid="stSidebar"] {
     background: #ffffff !important;
     border-right: 1px solid var(--border-light);
 }
+
+/* Fixed material icon bug and force pure black text */
 [data-testid="stSidebar"] .stMarkdown,
 [data-testid="stSidebar"] label,
 [data-testid="stSidebar"] p {
-    color: var(--text-dark) !important;
+    color: #000000 !important;
     font-family: var(--font-body);
-    font-size: 1rem !important; /* More readable sidebar text */
 }
 .material-symbols-rounded,
 [data-testid="stIconMaterial"] {
     font-family: "Material Symbols Rounded" !important;
 }
+
 [data-testid="stSidebar"] h1,
 [data-testid="stSidebar"] h2,
 [data-testid="stSidebar"] h3 {
     color: var(--gold-dim) !important;
-    font-family: var(--font-body) !important;
     font-weight: 700;
-    font-size: 0.9rem !important; /* Increased from 0.75rem */
-    letter-spacing: 0.1em; /* Softened letter spacing */
+    font-size: 0.75rem;
+    letter-spacing: 0.15em;
     text-transform: uppercase;
-    margin-top: 1.5rem;
 }
-[data-testid="stSidebar"] hr { border-color: var(--border-light); margin: 1.5rem 0; }
+[data-testid="stSidebar"] hr { border-color: var(--border-light); margin: 1rem 0; }
 
-/* Sidebar & Main Inputs */
+/* Sidebar Inputs */
 [data-testid="stSidebar"] input[type="text"],
 [data-testid="stSidebar"] input[type="number"],
 [data-testid="stSidebar"] textarea,
-[data-testid="stSidebar"] select,
+[data-testid="stSidebar"] select {
+    background: var(--bg-white) !important;
+    border: 1px solid var(--border-light) !important;
+    border-radius: 4px !important;
+    color: #000000 !important;
+    font-family: var(--font-mono) !important;
+    font-size: 0.82rem !important;
+}
+
+/* File Uploader Dropzone */
+[data-testid="stFileUploadDropzone"] {
+    background-color: var(--bg-white) !important;
+    border: 2px dashed #cbd5e1 !important;
+    border-radius: 6px !important;
+    padding: 1rem !important;
+}
+[data-testid="stFileUploadDropzone"]:hover {
+    border-color: var(--gold) !important;
+    background-color: var(--bg-offwhite) !important;
+}
+
+/* ── Main Area Inputs ─────────────────────────── */
 .stSelectbox > div > div,
 .stTextInput > div > div > input,
 .stNumberInput > div > div > input {
     background: var(--bg-white) !important;
     border: 1px solid var(--border-light) !important;
-    border-radius: 6px !important;
-    color: var(--text-dark) !important;
+    border-radius: 4px !important;
+    color: #000000 !important;
     font-family: var(--font-mono) !important;
-    font-size: 0.95rem !important; /* Increased from 0.82rem */
-    padding: 0.4rem 0.6rem !important;
+    font-size: 0.82rem !important;
 }
 .stSelectbox > div > div:hover,
 .stTextInput > div > div > input:focus {
@@ -122,30 +140,18 @@ html, body, [class*="css"] {
     box-shadow: 0 0 0 1px var(--gold-dim) !important;
 }
 
-/* File Uploader Dropzone */
-[data-testid="stFileUploadDropzone"] {
-    background-color: var(--bg-offwhite) !important;
-    border: 2px dashed #94a3b8 !important;
-    border-radius: 8px !important;
-    padding: 1.5rem !important;
-}
-[data-testid="stFileUploadDropzone"]:hover {
-    border-color: var(--gold) !important;
-    background-color: #fefce8 !important; /* Very soft gold tint */
-}
-
 /* ── Buttons ──────────────────────────────────── */
 .stButton > button {
     background: linear-gradient(135deg, var(--gold-dim), var(--gold)) !important;
-    color: var(--navy-mid) !important;
+    color: var(--navy) !important;
     border: none !important;
-    border-radius: 4px !important;
+    border-radius: 3px !important;
     font-family: var(--font-body) !important;
     font-weight: 600 !important;
-    font-size: 0.95rem !important; /* Increased from 0.78rem */
-    letter-spacing: 0.05em !important;
+    font-size: 0.78rem !important;
+    letter-spacing: 0.08em !important;
     text-transform: uppercase !important;
-    padding: 0.6rem 1.2rem !important;
+    padding: 0.45rem 1rem !important;
     transition: all 0.2s ease !important;
 }
 .stButton > button:hover {
@@ -161,33 +167,39 @@ html, body, [class*="css"] {
 /* Download buttons */
 [data-testid="stDownloadButton"] > button {
     background: var(--bg-offwhite) !important;
-    color: var(--navy-mid) !important;
+    color: var(--navy) !important;
     border: 1px solid var(--border-light) !important;
+    border-radius: 3px !important;
     font-weight: 600 !important;
-    font-size: 0.95rem !important;
+}
+[data-testid="stDownloadButton"] > button:hover {
+    background: #ffffff !important;
+    border-color: var(--gold) !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05) !important;
 }
 
 /* ── Tabs ─────────────────────────────────────── */
 [data-testid="stTabs"] [role="tablist"] {
     background: var(--bg-offwhite);
-    border-bottom: 2px solid var(--border-light);
+    border-bottom: 1px solid var(--border-light);
     gap: 0; padding: 0;
 }
 [data-testid="stTabs"] [role="tab"] {
-    color: #475569 !important; /* Soft gray for inactive tabs */
+    color: #000000 !important;
     font-family: var(--font-body) !important;
-    font-size: 0.95rem !important; /* Increased from 0.78rem */
+    font-size: 0.78rem !important;
     font-weight: 600 !important;
-    letter-spacing: 0.03em !important;
-    padding: 0.8rem 1.5rem !important;
-    border-bottom: 3px solid transparent !important;
+    letter-spacing: 0.06em !important;
+    text-transform: uppercase !important;
+    padding: 0.7rem 1.2rem !important;
+    border-bottom: 2px solid transparent !important;
 }
 [data-testid="stTabs"] [role="tab"]:hover {
-    color: var(--navy-mid) !important;
-    background: #f1f5f9 !important;
+    color: var(--navy) !important;
+    background: rgba(0,0,0,0.02) !important;
 }
 [data-testid="stTabs"] [role="tab"][aria-selected="true"] {
-    color: var(--navy-mid) !important;
+    color: #000000 !important;
     border-bottom-color: var(--gold) !important;
     background: var(--bg-white) !important;
 }
@@ -197,49 +209,41 @@ html, body, [class*="css"] {
     border: 1px solid var(--border-light) !important;
     border-radius: 6px !important;
     background: var(--bg-white) !important;
-    font-family: var(--font-mono) !important; /* Ensure data is monospaced */
 }
 [data-testid="stDataFrame"] th {
     background: var(--bg-offwhite) !important;
-    color: var(--text-dark) !important;
-    font-weight: 600 !important;
-    font-size: 0.95rem !important;
-    border-bottom: 2px solid var(--border-light) !important;
+    color: #000000 !important;
+    border-bottom: 1px solid var(--border-light) !important;
 }
 [data-testid="stDataFrame"] td {
-    color: var(--text-dark) !important;
-    font-size: 0.9rem !important;
+    color: #000000 !important;
 }
 
 /* ── Expanders ────────────────────────────────── */
 [data-testid="stExpander"] {
     border: 1px solid var(--border-light) !important;
-    border-radius: 6px !important;
+    border-radius: 4px !important;
     background: var(--bg-white) !important;
 }
 [data-testid="stExpander"] summary {
-    color: var(--text-dark) !important;
-    font-weight: 600 !important;
-    font-size: 1.05rem !important;
-    padding: 0.5rem !important;
+    color: #000000 !important;
+    font-weight: 700 !important;
 }
 
 /* ── Text Area & Selectors ────────────────────── */
 .stTextArea textarea {
     background: var(--bg-white) !important;
     border: 1px solid var(--border-light) !important;
-    color: var(--text-dark) !important;
-    font-size: 1rem !important;
+    color: #000000 !important;
 }
 [data-baseweb="tag"] {
     background: var(--bg-offwhite) !important;
     border: 1px solid var(--border-light) !important;
-    font-size: 0.9rem !important;
 }
-[data-baseweb="tag"] span { color: var(--text-dark) !important; }
+[data-baseweb="tag"] span { color: #000000 !important; }
 
 /* ── Alerts ───────────────────────────────────── */
-[data-testid="stAlert"] { color: var(--text-dark) !important; font-size: 1rem !important; }
+[data-testid="stAlert"] { color: #000000 !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -256,41 +260,40 @@ def render_header():
     logo_path = "SR.png"
     if os.path.exists(logo_path):
         img_b64 = get_base64_of_bin_file(logo_path)
-        icon_html = f'<img src="data:image/png;base64,{img_b64}" style="width: 64px; height: 64px; border-radius: 8px; object-fit: contain; box-shadow: 0 4px 20px rgba(0,0,0,0.5); flex-shrink: 0; background: white;">'
+        icon_html = f'<img src="data:image/png;base64,{img_b64}" style="width: 54px; height: 54px; border-radius: 8px; object-fit: contain; box-shadow: 0 4px 20px rgba(0,0,0,0.5); flex-shrink: 0; background: white;">'
     else:
-        icon_html = '<div style="width: 64px; height: 64px; background: linear-gradient(135deg, #9c7a32, #c9a84c); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 2rem; box-shadow: 0 4px 20px rgba(0,0,0,0.3); flex-shrink: 0;">🔬</div>'
+        icon_html = '<div style="width: 54px; height: 54px; background: linear-gradient(135deg, #9c7a32, #c9a84c); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; box-shadow: 0 4px 20px rgba(0,0,0,0.3); flex-shrink: 0;">🔬</div>'
 
     st.markdown(f"""
     <div style="
         background: linear-gradient(135deg, #0b1120 0%, #0f1a2e 100%);
-        padding: 2rem 2.5rem;
-        border-radius: 10px;
+        padding: 1.5rem 2rem;
+        border-radius: 8px;
         border: 1px solid rgba(201,168,76,0.3);
-        margin-bottom: 2rem;
+        margin-bottom: 1.5rem;
         margin-top: 1rem;
         display: flex;
         align-items: center;
         gap: 1.5rem;
-        box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
     ">
         {icon_html}
         <div>
             <div style="
                 font-family: 'Playfair Display', Georgia, serif;
-                font-size: 2.2rem;
+                font-size: 1.75rem;
                 font-weight: 700;
-                color: #ffffff;
-                letter-spacing: 0.02em;
-                line-height: 1.2;
+                color: #f0f4fb;
+                letter-spacing: 0.01em;
+                line-height: 1.1;
             ">FTIR Pro Suite <span style="color:#c9a84c;">5.0</span></div>
             <div style="
                 font-family: 'IBM Plex Sans', sans-serif;
-                font-size: 0.95rem;
-                color: #cbd5e1;
-                letter-spacing: 0.15em;
+                font-size: 0.72rem;
+                color: #a8b4c8;
+                letter-spacing: 0.2em;
                 text-transform: uppercase;
-                margin-top: 6px;
-                font-weight: 500;
+                margin-top: 2px;
             ">Spectroscopy Analysis Suite &nbsp;·&nbsp; Solomon Scientific &nbsp;·&nbsp; © 2026</div>
         </div>
     </div>
@@ -299,20 +302,20 @@ def render_header():
 def metric_card(label, value, unit="", delta=None):
     delta_html = ""
     if delta is not None:
-        color = "#2e9e63" if delta >= 0 else "#d93838"
+        color = "#3db87a" if delta >= 0 else "#e05252"
         arrow = "▲" if delta >= 0 else "▼"
-        delta_html = f'<div style="color:{color};font-size:0.9rem;margin-top:4px;font-weight:600;">{arrow} {abs(delta):.3f}</div>'
+        delta_html = f'<div style="color:{color};font-size:0.7rem;margin-top:2px;">{arrow} {abs(delta):.3f}</div>'
     return f"""
     <div style="
         background: #ffffff;
-        border: 1px solid #cbd5e1;
-        border-radius: 8px;
-        padding: 1.25rem 1.5rem;
-        border-top: 4px solid #c9a84c;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 1rem 1.25rem;
+        border-top: 3px solid #c9a84c;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.02);
     ">
-        <div style="font-family:'IBM Plex Sans',sans-serif;font-size:0.85rem;color:#475569;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px;font-weight:700;">{label}</div>
-        <div style="font-family:'IBM Plex Mono',monospace;font-size:2rem;color:#1a1a1a;font-weight:600;">{value}<span style="font-size:1rem;color:#475569;margin-left:6px;">{unit}</span></div>
+        <div style="font-family:'IBM Plex Sans',sans-serif;font-size:0.68rem;color:#000000;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:4px;font-weight:700;">{label}</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:1.35rem;color:#000000;font-weight:700;">{value}<span style="font-size:0.7rem;color:#000000;margin-left:4px;">{unit}</span></div>
         {delta_html}
     </div>
     """
@@ -320,21 +323,21 @@ def metric_card(label, value, unit="", delta=None):
 def section_title(text, icon=""):
     st.markdown(f"""
     <div style="
-        display:flex; align-items:center; gap:0.8rem;
+        display:flex; align-items:center; gap:0.6rem;
         background: linear-gradient(90deg, #0b1120 0%, #1a2540 100%);
-        padding: 0.8rem 1.5rem;
+        padding: 0.6rem 1.25rem;
         border-radius: 6px;
-        border-left: 5px solid #c9a84c;
-        margin: 2rem 0 1.5rem 0;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        border-left: 4px solid #c9a84c;
+        margin: 1.5rem 0 1rem 0;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.08);
     ">
-        <span style="font-size:1.4rem; color:#ffffff;">{icon}</span>
+        <span style="font-size:1.1rem; color:#f0f4fb;">{icon}</span>
         <span style="
             font-family:'IBM Plex Sans',sans-serif;
-            font-size:1.05rem;
+            font-size:0.8rem;
             font-weight:600;
-            color:#ffffff;
-            letter-spacing:0.1em;
+            color:#f0f4fb;
+            letter-spacing:0.15em;
             text-transform:uppercase;
         ">{text}</span>
     </div>
@@ -343,64 +346,63 @@ def section_title(text, icon=""):
 def info_box(text, kind="info"):
     colors = {
         "info":    ("#3a7bd5", "rgba(58,123,213,0.08)"),
-        "success": ("#2e9e63", "rgba(46,158,99,0.08)"),
-        "warning": ("#c9a84c", "rgba(201,168,76,0.1)"),
-        "error":   ("#d93838", "rgba(217,56,56,0.08)"),
+        "success": ("#3db87a", "rgba(61,184,122,0.08)"),
+        "warning": ("#c9a84c", "rgba(201,168,76,0.08)"),
+        "error":   ("#e05252", "rgba(224,82,82,0.08)"),
     }
     border, bg = colors.get(kind, colors["info"])
     icon = {"info": "ℹ", "success": "✓", "warning": "⚠", "error": "✕"}.get(kind, "ℹ")
     st.markdown(f"""
     <div style="
         background:{bg}; border-left:4px solid {border};
-        border-radius:6px; padding:1rem 1.25rem;
-        font-family:'IBM Plex Sans',sans-serif; font-size:1rem; color:#1a1a1a;
-        margin:1rem 0; font-weight:500; line-height: 1.5;
-    "><span style="color:{border};margin-right:0.75rem;font-weight:bold;font-size:1.1rem;">{icon}</span>{text}</div>
+        border-radius:4px; padding:0.75rem 1rem;
+        font-family:'IBM Plex Sans',sans-serif; font-size:0.85rem; color:#000000;
+        margin:0.5rem 0; font-weight:500;
+    "><span style="color:{border};margin-right:0.5rem;font-weight:bold;">{icon}</span>{text}</div>
     """, unsafe_allow_html=True)
 
 def render_sidebar_brand():
     logo_path = "SR.png"
     if os.path.exists(logo_path):
         img_b64 = get_base64_of_bin_file(logo_path)
-        icon_html = f'<img src="data:image/png;base64,{img_b64}" style="width: 70px; height: 70px; margin: 0 auto 1rem auto; border-radius: 12px; display: block; box-shadow: 0 4px 15px rgba(0,0,0,0.1); object-fit: contain; background: white;">'
+        icon_html = f'<img src="data:image/png;base64,{img_b64}" style="width: 52px; height: 52px; margin: 0 auto 0.75rem auto; border-radius: 10px; display: block; box-shadow: 0 4px 12px rgba(0,0,0,0.1); object-fit: contain; background: white;">'
     else:
-        icon_html = '<div style="width:70px; height:70px; margin:0 auto 1rem auto; background:linear-gradient(135deg,#9c7a32,#c9a84c); border-radius:12px; display:flex;align-items:center;justify-content:center; font-size:2rem; box-shadow:0 4px 15px rgba(0,0,0,0.1);">🔬</div>'
+        icon_html = '<div style="width:52px; height:52px; margin:0 auto 0.75rem auto; background:linear-gradient(135deg,#9c7a32,#c9a84c); border-radius:10px; display:flex;align-items:center;justify-content:center; font-size:1.5rem; box-shadow:0 4px 12px rgba(0,0,0,0.1);">🔬</div>'
 
     st.markdown(f"""
-    <div style="padding: 1.5rem 0 1rem 0; text-align:center;">
+    <div style="padding: 1.25rem 0 0.5rem 0; text-align:center;">
         {icon_html}
         <div style="
             font-family:'IBM Plex Sans',sans-serif;
-            font-size:0.8rem;
+            font-size:0.65rem;
             color:#9c7a32;
-            letter-spacing:0.15em;
+            letter-spacing:0.2em;
             text-transform:uppercase;
-            margin-bottom:6px;
-            font-weight: 600;
+            margin-bottom:4px;
         ">Solomon Scientific</div>
         <div style="
             font-family:'Playfair Display',Georgia,serif;
-            font-size:1.4rem;
+            font-size:1.1rem;
             font-weight:700;
-            color:#1a1a1a;
+            color:#000000;
         ">FTIR Pro Suite <span style="color:#c9a84c;">5.0</span></div>
         <div style="
-            margin-top:1.25rem;
-            padding-top:1.25rem;
-            border-top:1px solid #cbd5e1;
+            margin-top:0.75rem;
+            padding-top:0.75rem;
+            border-top:1px solid #e2e8f0;
             font-family:'IBM Plex Sans',sans-serif;
-            font-size:0.9rem;
-            color:#475569;
+            font-size:0.68rem;
+            color:#000000;
             font-weight:500;
-            line-height: 1.6;
         ">Advanced Spectroscopy Tools<br>
-        <a href='mailto:solomon.duf@gmail.com'
-           style='color:#9c7a32;text-decoration:none;font-weight:600;display:inline-block;margin-top:0.5rem;'>
+        <a href='mailto:your.solomon.duf@gmail.com'
+           style='color:#9c7a32;text-decoration:none;'>
             ✉ Contact Developer
         </a>
         </div>
     </div>
     """, unsafe_allow_html=True)
+
 
 # ==========================================
 # ADVANCED MATH & UTILS
