@@ -665,7 +665,7 @@ if not master.empty:
     k4.markdown(metric_card("Baseline/Smooth", "ON" if apply_baseline else "OFF", ""), unsafe_allow_html=True)
     st.markdown("<div style='height:1rem'></div>", unsafe_allow_html=True)
 
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
         "📉 Primary Spectra", 
         "🔬 2nd Derivative", 
         "📋 Peak Assignments", 
@@ -673,7 +673,8 @@ if not master.empty:
         "🧠 PCA Clustering", 
         "🧪 Spectral Match", 
         "📊 Data Export",
-        "📚 Methods"
+        "📚 Method",
+        "⏱️ EPDM KOH Aging" # NEW TAB
     ])
 
     # ---------------------------
@@ -1064,6 +1065,124 @@ if not master.empty:
         This normalized dot product provides a robust structural metric that is highly invariant to scalar multiplication, such as changes in sample thickness or concentration.
         </div>
         """, unsafe_allow_html=True)
+# ---------------------------
+    # TAB 9: EPDM KOH AGING TRACKER
+    # ---------------------------
+    with tab9:
+        section_title("EPDM alkaline Aging Kinetics (KOH Electrolyzer)", "⏱️")
+        
+        st.markdown("""
+        <div style="font-family:'IBM Plex Sans',sans-serif; font-size:0.95rem; color:#1a1a1a; margin-bottom: 1.5rem; line-height: 1.6;">
+        Track the thermo-chemical degradation of peroxide-cured EPDM in KOH. This module calculates the <b>Carbonyl Index (CI)</b> and <b>Hydroxyl Index (HI)</b> by normalizing degradation peaks (~1715 cm⁻¹ and ~3400 cm⁻¹) against the stable EPDM backbone reference peak (~1460 cm⁻¹).
+        </div>
+        """, unsafe_allow_html=True)
+
+        if len(master) == 0:
+            info_box("Upload spectra to begin aging analysis.", "warning")
+        else:
+            col_meta, col_plot = st.columns([1, 1.8], gap="large")
+            
+            with col_meta:
+                st.markdown("<h4 style='font-family:Arial; font-size:1.1rem; font-weight:600;'>1. Experimental Metadata</h4>", unsafe_allow_html=True)
+                st.markdown("<p style='font-size:0.9rem; color:#475569;'>Assign the precise aging conditions to your uploaded files.</p>", unsafe_allow_html=True)
+                
+                # Initialize metadata in session state to persist user inputs
+                if 'epdm_metadata' not in st.session_state or len(st.session_state['epdm_metadata']) != len(master):
+                    meta_df = master[['File']].copy()
+                    meta_df['Aging_Days'] = 0.0
+                    meta_df['Temp_C'] = 65
+                    meta_df['KOH_Molar'] = 1.0
+                    st.session_state['epdm_metadata'] = meta_df
+                
+                # Editable dataframe for exact parameters
+                edited_meta = st.data_editor(
+                    st.session_state['epdm_metadata'],
+                    hide_index=True,
+                    use_container_width=True,
+                    column_config={
+                        "File": st.column_config.TextColumn("Spectrum File", disabled=True),
+                        "Aging_Days": st.column_config.NumberColumn("Days", min_value=0.0, format="%.1f"),
+                        "Temp_C": st.column_config.SelectboxColumn("Temp (°C)", options=[65, 80], required=True),
+                        "KOH_Molar": st.column_config.SelectboxColumn("KOH (M)", options=[0.0, 0.5, 1.0, 1.5, 2.0], required=True)
+                    }
+                )
+                st.session_state['epdm_metadata'] = edited_meta
+                
+                st.markdown("<br><h4 style='font-family:Arial; font-size:1.1rem; font-weight:600;'>2. Integration Parameters</h4>", unsafe_allow_html=True)
+                ref_peak = st.number_input("Reference Peak (Backbone CH₂)", value=1460, step=5)
+                carb_peak = st.number_input("Oxidation Peak (Carbonyl C=O)", value=1715, step=5)
+                hydr_peak = st.number_input("Water/Hydroxyl Peak (O-H)", value=3400, step=5)
+
+            with col_plot:
+                # Calculate Indices
+                kinetics_data = []
+                for idx, row in edited_meta.iterrows():
+                    file_name = row['File']
+                    if file_name in spectra:
+                        df_spec = spectra[file_name]
+                        wavenumbers = df_spec['Wavenumber'].values
+                        absorbance = df_spec['Absorbance_Norm'].values
+                        
+                        # Find closest indices for the target wavenumbers
+                        idx_ref = np.argmin(np.abs(wavenumbers - ref_peak))
+                        idx_carb = np.argmin(np.abs(wavenumbers - carb_peak))
+                        idx_hydr = np.argmin(np.abs(wavenumbers - hydr_peak))
+                        
+                        abs_ref = max(absorbance[idx_ref], 0.0001) # Prevent division by zero
+                        abs_carb = absorbance[idx_carb]
+                        abs_hydr = absorbance[idx_hydr]
+                        
+                        kinetics_data.append({
+                            "File": file_name,
+                            "Days": row['Aging_Days'],
+                            "Temperature": f"{row['Temp_C']} °C",
+                            "KOH Concentration": f"{row['KOH_Molar']} M",
+                            "Carbonyl Index": abs_carb / abs_ref,
+                            "Hydroxyl Index": abs_hydr / abs_ref
+                        })
+                
+                k_df = pd.DataFrame(kinetics_data)
+                
+                if not k_df.empty:
+                    target_metric = st.radio("Select Degradation Metric to Plot", ["Carbonyl Index", "Hydroxyl Index"], horizontal=True)
+                    
+                    # Create highly specific, journal-quality scatter plot
+                    fig_kinetics = px.scatter(
+                        k_df, 
+                        x="Days", 
+                        y=target_metric, 
+                        color="KOH Concentration", 
+                        symbol="Temperature",
+                        hover_data=["File"],
+                        trendline="ols" if len(k_df) > 3 else None # Add OLS trendline if enough data
+                    )
+                    
+                    fig_kinetics.update_traces(marker=dict(size=12, line=dict(width=1.5, color=BLACK)))
+                    
+                    fig_kinetics.update_layout(
+                        plot_bgcolor=PLOT_BG, paper_bgcolor=PAPER_BG,
+                        title=dict(text=f"<b>EPDM Degradation Kinetics: {target_metric}</b>", font=dict(family="Arial", size=16, color=BLACK)),
+                        xaxis=dict(title="<b>Aging Time (Days)</b>", **FTIR_STYLE),
+                        yaxis=dict(title=f"<b>{target_metric} (A.U.)</b>", **FTIR_STYLE),
+                        height=500,
+                        margin=dict(l=60, r=40, t=60, b=60),
+                        legend=dict(
+                            bgcolor=WHITE, bordercolor=BLACK, borderwidth=1,
+                            font=dict(family="Arial", size=12, color=BLACK),
+                            title_font=dict(family="Arial", size=13, color=BLACK)
+                        )
+                    )
+                    st.plotly_chart(fig_kinetics, use_container_width=True, config=JOURNAL_CONFIG)
+                    
+                    # Export Data
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    csv_k = k_df.to_csv(index=False).encode('utf-8')
+                    st.download_button(
+                        label="📥 Download EPDM Kinetics Data (CSV)",
+                        data=csv_k,
+                        file_name="EPDM_KOH_Kinetics.csv",
+                        mime="text/csv",
+                    )
 else:
     # --- Empty State UI ---
     st.markdown("""
