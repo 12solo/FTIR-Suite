@@ -672,8 +672,8 @@ if not master.empty:
         "📈 Deconvolution", 
         "🧠 PCA Clustering", 
         "🧪 Spectral Match", 
-        "📊 Data Matrix Export",
-        "📚 Methodologies"
+        "📊 Data Export",
+        "📚 Method"
     ])
 
     # ---------------------------
