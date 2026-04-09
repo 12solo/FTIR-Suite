@@ -547,6 +547,11 @@ with st.sidebar:
     st.markdown("### 2 · Plot Formatting")
     stack_offset = st.slider("Vertical Offset Cushion", 0.0, 1.0, 0.2, step=0.05)
     line_w = st.slider("Line Weight", 1.0, 4.0, 2.0)
+    
+    # NEW TOGGLE ADDED HERE
+    show_raw_spectra = st.checkbox("Show Raw Data (No Baseline Correction)", value=False, 
+                                   help="Plot the raw uploaded data without ALS baseline or smoothing applied.")
+    
     selected_ref = st.multiselect("Label Peaks (DB)", list(POLYMER_DB.keys()), default=["General / Unknown"])
     
     st.markdown("<hr>", unsafe_allow_html=True)
@@ -697,13 +702,34 @@ if not master.empty:
         for i, name in enumerate(master['File'].unique()):
             df = spectra[name]
             wavenumbers = df['Wavenumber'].values
-            plot_y = 100 * (10 ** -df['Absorbance_Norm'].values) if is_transmittance else df['Absorbance_Norm'].values
+            
+            # --- NEW LOGIC: Check the sidebar toggle ---
+            if show_raw_spectra:
+                # Use raw data, but scale it slightly so it doesn't break the stacking offset
+                raw_vals = df['Raw_Intensity'].values
+                min_val, max_val = raw_vals.min(), raw_vals.max()
+                # Normalize just for display purposes so the offset slider still works
+                if max_val > min_val:
+                    plot_y = (raw_vals - min_val) / (max_val - min_val)
+                else:
+                    plot_y = raw_vals
+                
+                # Apply transmittance math if needed
+                if is_transmittance:
+                    plot_y = 100 * (10 ** -plot_y)
+            else:
+                # Original processed logic
+                plot_y = 100 * (10 ** -df['Absorbance_Norm'].values) if is_transmittance else df['Absorbance_Norm'].values
+            
             color = PALETTE[i % len(PALETTE)]
 
+            # Note: We append '(Raw)' to the name if the toggle is active
+            trace_name = f"{name} (Raw)" if show_raw_spectra else name
+            
             fig.add_trace(go.Scatter(
                 x=wavenumbers, y=plot_y + current_baseline,
                 mode='lines', line=dict(width=line_w, color=color), 
-                name=name, hoverinfo="name+x+y", showlegend=False
+                name=trace_name, hoverinfo="name+x+y", showlegend=False
             ))
 
             anchor_x = 3900 if 3900 <= wavenumbers.max() else wavenumbers.max()
@@ -716,7 +742,7 @@ if not master.empty:
             # Trace Name Label (Journal Style)
             fig.add_annotation(
                 x=anchor_x, y=label_y_pos, 
-                text=f"{name}", showarrow=False,
+                text=trace_name, showarrow=False,
                 xanchor='left', yanchor='bottom' if not is_transmittance else 'top',
                 font=dict(family="Arial", size=14, color=color)
             )
@@ -743,7 +769,7 @@ if not master.empty:
                     ay=current_ay, ax=0, 
                     standoff=5, 
                     font=dict(family="Arial", size=12, color=BLACK),
-                    bgcolor=PAPER_BG, borderpad=3  # Removed bordercolor and borderwidth
+                    bgcolor=PAPER_BG, borderpad=3  
                 )
             
             spectrum_height = plot_y.max() - plot_y.min() if not is_transmittance else 100
@@ -751,11 +777,15 @@ if not master.empty:
             current_baseline += spectrum_height + scaled_offset + text_buffer
 
         dynamic_plot_height = max(600, 200 + (len(master['File'].unique()) * 120))
+        
+        # Update title based on toggle
+        y_axis_title = f"<b>{display_mode} (Stacked Raw Data)</b>" if show_raw_spectra else f"<b>{display_mode} (Stacked)</b>"
+        
         fig.update_layout(
             height=dynamic_plot_height,
             plot_bgcolor=PLOT_BG, paper_bgcolor=PAPER_BG,
             xaxis=dict(title="<b>Wavenumber (cm⁻¹)</b>", range=[4000, 400], **FTIR_STYLE),
-            yaxis=dict(title=f"<b>{display_mode} (Stacked)</b>", showticklabels=False, **FTIR_STYLE),
+            yaxis=dict(title=y_axis_title, showticklabels=False, **FTIR_STYLE),
             margin=dict(l=50, r=50, t=50, b=50)
         )
         st.plotly_chart(fig, use_container_width=True, config=JOURNAL_CONFIG)
