@@ -1487,8 +1487,8 @@ if not master.empty:
                         fig_trend_adv.update_layout(
                             plot_bgcolor=PLOT_BG, paper_bgcolor=PAPER_BG,
                             title=dict(text=f"<b>{target_metric_adv.replace('_', ' ')} vs. Aging Time</b>", font=dict(family="Arial", size=16, color=BLACK)),
-                            xaxis=dict(title="<b>Aging Time (Days)</b>", **FTIR_STYLE, showgrid=True, gridcolor='rgba(0,0,0,0.1)'),
-                            yaxis=dict(title=f"<b>{target_metric_adv.replace('_', ' ')}</b>", **FTIR_STYLE, showgrid=True, gridcolor='rgba(0,0,0,0.1)'),
+                           xaxis={**FTIR_STYLE, "title": "<b>Aging Time (Days)</b>", "showgrid": True, "gridcolor": "rgba(0,0,0,0.1)"},
+                           yaxis={**FTIR_STYLE, "title": f"<b>{target_metric_adv.replace('_', ' ')}</b>", "showgrid": True, "gridcolor": "rgba(0,0,0,0.1)"},
                             height=550, margin=dict(l=70, r=40, t=70, b=70),
                             legend=dict(bgcolor=WHITE, bordercolor=BLACK, borderwidth=1, font=dict(family="Arial", size=11, color=BLACK), x=1.02, y=1, xanchor='left'),
                             hovermode='closest'
