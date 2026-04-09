@@ -1608,31 +1608,6 @@ if not master.empty:
                     if not stats_df_adv.empty:
                         csv_stats = stats_df_adv.to_csv(index=False).encode('utf-8')
                         st.download_button(label="📊 Statistical Summary", data=csv_stats, file_name="EPDM_Kinetics_Stats_Advanced.csv", mime="text/csv", key="dl_stats_adv")
-
-else:
-    # --- Empty State UI ---
-    st.markdown("""
-    <div style="
-        margin-top:3rem; padding:3rem 2rem; background:#ffffff;
-        border:1px solid #e2e8f0; box-shadow: 0 4px 15px rgba(0,0,0,0.03);
-        border-radius:8px; text-align:center;
-    ">
-        <div style="font-size:3rem;margin-bottom:1rem;">📉</div>
-        <div style="
-            font-family:'Playfair Display',Georgia,serif;
-            font-size:1.5rem;color:#000000; margin-bottom:0.5rem; font-weight:700;
-        ">Ready for Spectral Analysis</div>
-        <div style="
-            font-family:'IBM Plex Sans',sans-serif;
-            font-size:0.85rem;color:#000000;
-            max-width:480px;margin:0 auto;line-height:1.7;
-        ">
-            Upload your raw FTIR data files via the <b style="color:#c9a84c;">Data Input</b> panel
-            in the sidebar. Supports automatic baseline correction (ALS), Savitzky-Golay smoothing, 
-            2nd Derivative resolution enhancement, and EPDM Aging Analysis.
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
 else:
     # --- Empty State UI ---
     st.markdown("""
