@@ -10,6 +10,10 @@ from scipy import sparse
 from scipy.sparse.linalg import spsolve
 from sklearn.decomposition import PCA
 from sklearn.metrics.pairwise import cosine_similarity
+from scipy.signal import savgol_filter, find_peaks
+from scipy.optimize import curve_fit
+from scipy.stats import linregress # <-- Ensure this is here
+from scipy import sparse
 import os
 import re
 import io
@@ -1066,123 +1070,758 @@ if not master.empty:
         </div>
         """, unsafe_allow_html=True)
 # ---------------------------
-    # TAB 9: EPDM KOH AGING TRACKER
+    # ---------------------------
+    # TAB 9: EPDM KOH AGING TRACKER - ADVANCED RESEARCH VERSION
     # ---------------------------
     with tab9:
-        section_title("EPDM alkaline Aging Kinetics (KOH Electrolyzer)", "⏱️")
+        section_title("EPDM Alkaline Aging Kinetics (AEM Electrolyzer)", "⏱️")
         
         st.markdown("""
         <div style="font-family:'IBM Plex Sans',sans-serif; font-size:0.95rem; color:#1a1a1a; margin-bottom: 1.5rem; line-height: 1.6;">
-        Track the thermo-chemical degradation of peroxide-cured EPDM in KOH. This module calculates the <b>Carbonyl Index (CI)</b> and <b>Hydroxyl Index (HI)</b> by normalizing degradation peaks (~1715 cm⁻¹ and ~3400 cm⁻¹) against the stable EPDM backbone reference peak (~1460 cm⁻¹).
+        Advanced thermo-chemical degradation analysis of peroxide-cured EPDM in KOH electrolyte. This module calculates multiple degradation indices, 
+        performs Arrhenius kinetic modeling, tracks mechanistic pathways, and provides publication-ready statistical analysis.
         </div>
         """, unsafe_allow_html=True)
 
         if len(master) == 0:
             info_box("Upload spectra to begin aging analysis.", "warning")
         else:
-            col_meta, col_plot = st.columns([1, 1.8], gap="large")
+            # ============================================================
+            # SECTION 1: EXPERIMENTAL METADATA & INTEGRATION PARAMETERS
+            # ============================================================
+            st.markdown("<h3 style='font-family:Arial; font-size:1.3rem; font-weight:700; margin-top:1rem;'>⚙️ Experimental Configuration</h3>", unsafe_allow_html=True)
+            
+            col_meta, col_params = st.columns([1.2, 1], gap="large")
             
             with col_meta:
-                st.markdown("<h4 style='font-family:Arial; font-size:1.1rem; font-weight:600;'>1. Experimental Metadata</h4>", unsafe_allow_html=True)
-                st.markdown("<p style='font-size:0.9rem; color:#475569;'>Assign the precise aging conditions to your uploaded files.</p>", unsafe_allow_html=True)
+                st.markdown("<h4 style='font-family:Arial; font-size:1.05rem; font-weight:600;'>Aging Conditions</h4>", unsafe_allow_html=True)
+                st.markdown("<p style='font-size:0.88rem; color:#475569;'>Assign precise aging conditions. Use replicates for statistical rigor.</p>", unsafe_allow_html=True)
                 
-                # Initialize metadata in session state to persist user inputs
+                # Initialize metadata with replicate tracking
                 if 'epdm_metadata' not in st.session_state or len(st.session_state['epdm_metadata']) != len(master):
                     meta_df = master[['File']].copy()
+                    meta_df['Replicate_ID'] = ['A'] * len(meta_df)
                     meta_df['Aging_Days'] = 0.0
                     meta_df['Temp_C'] = 65
                     meta_df['KOH_Molar'] = 1.0
+                    meta_df['Sample_Type'] = 'Aged'
                     st.session_state['epdm_metadata'] = meta_df
                 
-                # Editable dataframe for exact parameters
                 edited_meta = st.data_editor(
                     st.session_state['epdm_metadata'],
                     hide_index=True,
                     use_container_width=True,
                     column_config={
                         "File": st.column_config.TextColumn("Spectrum File", disabled=True),
-                        "Aging_Days": st.column_config.NumberColumn("Days", min_value=0.0, format="%.1f"),
-                        "Temp_C": st.column_config.SelectboxColumn("Temp (°C)", options=[65, 80], required=True),
-                        "KOH_Molar": st.column_config.SelectboxColumn("KOH (M)", options=[0.0, 0.5, 1.0, 1.5, 2.0], required=True)
+                        "Replicate_ID": st.column_config.SelectboxColumn("Rep.", options=['A', 'B', 'C', 'D', 'E'], required=True),
+                        "Aging_Days": st.column_config.NumberColumn("Days", min_value=0.0, format="%.2f"),
+                        "Temp_C": st.column_config.SelectboxColumn("Temp (°C)", options=[23, 40, 50, 65, 80, 95], required=True),
+                        "KOH_Molar": st.column_config.SelectboxColumn("KOH (M)", options=[0.0, 0.5, 1.0, 1.5, 2.0, 3.0], required=True),
+                        "Sample_Type": st.column_config.SelectboxColumn("Type", options=['Pristine', 'Aged'], required=True)
                     }
                 )
                 st.session_state['epdm_metadata'] = edited_meta
-                
-                st.markdown("<br><h4 style='font-family:Arial; font-size:1.1rem; font-weight:600;'>2. Integration Parameters</h4>", unsafe_allow_html=True)
-                ref_peak = st.number_input("Reference Peak (Backbone CH₂)", value=1460, step=5)
-                carb_peak = st.number_input("Oxidation Peak (Carbonyl C=O)", value=1715, step=5)
-                hydr_peak = st.number_input("Water/Hydroxyl Peak (O-H)", value=3400, step=5)
 
-            with col_plot:
-                # Calculate Indices
-                kinetics_data = []
-                for idx, row in edited_meta.iterrows():
-                    file_name = row['File']
-                    if file_name in spectra:
-                        df_spec = spectra[file_name]
-                        wavenumbers = df_spec['Wavenumber'].values
-                        absorbance = df_spec['Absorbance_Norm'].values
-                        
-                        # Find closest indices for the target wavenumbers
-                        idx_ref = np.argmin(np.abs(wavenumbers - ref_peak))
-                        idx_carb = np.argmin(np.abs(wavenumbers - carb_peak))
-                        idx_hydr = np.argmin(np.abs(wavenumbers - hydr_peak))
-                        
-                        abs_ref = max(absorbance[idx_ref], 0.0001) # Prevent division by zero
-                        abs_carb = absorbance[idx_carb]
-                        abs_hydr = absorbance[idx_hydr]
-                        
-                        kinetics_data.append({
-                            "File": file_name,
-                            "Days": row['Aging_Days'],
-                            "Temperature": f"{row['Temp_C']} °C",
-                            "KOH Concentration": f"{row['KOH_Molar']} M",
-                            "Carbonyl Index": abs_carb / abs_ref,
-                            "Hydroxyl Index": abs_hydr / abs_ref
-                        })
+            with col_params:
+                st.markdown("<h4 style='font-family:Arial; font-size:1.05rem; font-weight:600;'>Peak Assignment (cm⁻¹)</h4>", unsafe_allow_html=True)
+                st.markdown("<p style='font-size:0.88rem; color:#475569;'>Define characteristic bands for degradation tracking.</p>", unsafe_allow_html=True)
                 
-                k_df = pd.DataFrame(kinetics_data)
+                col_p1, col_p2 = st.columns(2)
+                with col_p1:
+                    ref_peak = st.number_input("Reference (CH₂)", value=1460, step=5, help="Backbone methylene (~1460 cm⁻¹)")
+                    carb_peak = st.number_input("Carbonyl (C=O)", value=1715, step=5, help="Oxidation product (~1715 cm⁻¹)")
+                    hydr_peak = st.number_input("Hydroxyl (O-H)", value=3400, step=5, help="Hydroxyl/water (~3400 cm⁻¹)")
                 
-                if not k_df.empty:
-                    target_metric = st.radio("Select Degradation Metric to Plot", ["Carbonyl Index", "Hydroxyl Index"], horizontal=True)
+                with col_p2:
+                    ester_peak = st.number_input("Ester (C-O-C)", value=1240, step=5, help="Ester/ether (~1240 cm⁻¹)")
+                    vinyl_peak = st.number_input("Vinyl (C=C)", value=1640, step=5, help="Residual unsaturation (~1640 cm⁻¹)")
+                    ch3_peak = st.number_input("Methyl (CH₃)", value=1380, step=5, help="Chain integrity (~1380 cm⁻¹)")
+                
+                integration_width = st.slider("Integration Window (±cm⁻¹)", 5, 50, 15, 5, 
+                                              help="Spectral range for peak area integration")
+
+            # ============================================================
+            # SECTION 2: ADVANCED SPECTRAL ANALYSIS
+            # ============================================================
+            st.markdown("<h3 style='font-family:Arial; font-size:1.3rem; font-weight:700; margin-top:2rem;'>📊 Degradation Index Calculation</h3>", unsafe_allow_html=True)
+            
+            analysis_mode = st.radio(
+                "Analysis Method:",
+                ["Peak Height (Fast)", "Peak Area Integration (Accurate)", "Deconvoluted Peak Area (Advanced)"],
+                horizontal=True,
+                help="Peak height: quick screening. Area integration: quantitative. Deconvolution: overlapping bands."
+            )
+            
+            # Calculate comprehensive degradation indices
+            kinetics_data = []
+            
+            for idx, row in edited_meta.iterrows():
+                file_name = row['File']
+                if file_name in spectra:
+                    df_spec = spectra[file_name]
+                    wavenumbers = df_spec['Wavenumber'].values
+                    absorbance = df_spec['Absorbance_Norm'].values
                     
-                    # Create highly specific, journal-quality scatter plot
-                    fig_kinetics = px.scatter(
-                        k_df, 
-                        x="Days", 
-                        y=target_metric, 
-                        color="KOH Concentration", 
-                        symbol="Temperature",
-                        hover_data=["File"],
-                        trendline="ols" if len(k_df) > 3 else None # Add OLS trendline if enough data
-                    )
+                    def get_peak_value(target_wn, method='height'):
+                        """Extract peak value using specified method"""
+                        idx_center = np.argmin(np.abs(wavenumbers - target_wn))
+                        
+                        if method == 'height':
+                            return max(absorbance[idx_center], 0.0001)
+                        
+                        elif method == 'area':
+                            # Integrate over window
+                            mask = np.abs(wavenumbers - target_wn) <= integration_width
+                            if np.sum(mask) > 2:
+                                wn_region = wavenumbers[mask]
+                                abs_region = absorbance[mask]
+                                # Trapezoidal integration
+                                area = np.trapz(abs_region, wn_region)
+                                return max(abs(area), 0.0001)
+                            return max(absorbance[idx_center], 0.0001)
+                        
+                        elif method == 'deconvolution':
+                            # Simple Gaussian fitting for overlapping peaks
+                            mask = np.abs(wavenumbers - target_wn) <= integration_width * 2
+                            if np.sum(mask) > 5:
+                                wn_region = wavenumbers[mask]
+                                abs_region = absorbance[mask]
+                                
+                                def gaussian(x, amp, center, sigma):
+                                    return amp * np.exp(-(x - center)**2 / (2 * sigma**2))
+                                
+                                try:
+                                    # Initial guess
+                                    amp_init = np.max(abs_region)
+                                    popt, _ = curve_fit(gaussian, wn_region, abs_region, 
+                                                       p0=[amp_init, target_wn, 10],
+                                                       bounds=([0, target_wn-20, 1], [amp_init*2, target_wn+20, 50]))
+                                    # Integrate fitted Gaussian
+                                    fitted_area = popt[0] * popt[2] * np.sqrt(2 * np.pi)
+                                    return max(fitted_area, 0.0001)
+                                except:
+                                    pass
+                            return max(absorbance[idx_center], 0.0001)
                     
-                    fig_kinetics.update_traces(marker=dict(size=12, line=dict(width=1.5, color=BLACK)))
+                    # Determine method
+                    if "Peak Height" in analysis_mode:
+                        method = 'height'
+                    elif "Peak Area Integration" in analysis_mode:
+                        method = 'area'
+                    else:
+                        method = 'deconvolution'
                     
-                    fig_kinetics.update_layout(
-                        plot_bgcolor=PLOT_BG, paper_bgcolor=PAPER_BG,
-                        title=dict(text=f"<b>EPDM Degradation Kinetics: {target_metric}</b>", font=dict(family="Arial", size=16, color=BLACK)),
-                        xaxis=dict(title="<b>Aging Time (Days)</b>", **FTIR_STYLE),
-                        yaxis=dict(title=f"<b>{target_metric} (A.U.)</b>", **FTIR_STYLE),
-                        height=500,
-                        margin=dict(l=60, r=40, t=60, b=60),
-                        legend=dict(
-                            bgcolor=WHITE, bordercolor=BLACK, borderwidth=1,
-                            font=dict(family="Arial", size=12, color=BLACK),
-                            title_font=dict(family="Arial", size=13, color=BLACK)
+                    # Extract all peak values
+                    val_ref = get_peak_value(ref_peak, method)
+                    val_carb = get_peak_value(carb_peak, method)
+                    val_hydr = get_peak_value(hydr_peak, method)
+                    val_ester = get_peak_value(ester_peak, method)
+                    val_vinyl = get_peak_value(vinyl_peak, method)
+                    val_ch3 = get_peak_value(ch3_peak, method)
+                    
+                    # Calculate normalized indices
+                    kinetics_data.append({
+                        "File": file_name,
+                        "Replicate": row['Replicate_ID'],
+                        "Days": row['Aging_Days'],
+                        "Temp_C": row['Temp_C'],
+                        "KOH_M": row['KOH_Molar'],
+                        "Sample_Type": row['Sample_Type'],
+                        "Condition": f"{row['Temp_C']}°C, {row['KOH_Molar']}M KOH",
+                        "Carbonyl_Index": val_carb / val_ref,
+                        "Hydroxyl_Index": val_hydr / val_ref,
+                        "Ester_Index": val_ester / val_ref,
+                        "Vinyl_Index": val_vinyl / val_ref,
+                        "Chain_Integrity": val_ch3 / val_ref,
+                        "Overall_Degradation": (val_carb + val_hydr) / (2 * val_ref)
+                    })
+            
+            k_df = pd.DataFrame(kinetics_data)
+            
+            if k_df.empty:
+                st.warning("No spectral data available for analysis.")
+            else:
+                # ============================================================
+                # SECTION 3: STATISTICAL AGGREGATION
+                # ============================================================
+                st.markdown("<h4 style='font-family:Arial; font-size:1.05rem; font-weight:600; margin-top:1.5rem;'>Statistical Summary</h4>", unsafe_allow_html=True)
+                
+                # Group by condition and calculate statistics
+                index_cols = ['Carbonyl_Index', 'Hydroxyl_Index', 'Ester_Index', 'Vinyl_Index', 'Chain_Integrity', 'Overall_Degradation']
+                
+                stats_data = []
+                for (days, temp, koh), group in k_df.groupby(['Days', 'Temp_C', 'KOH_M']):
+                    if len(group) > 0:
+                        stats_row = {
+                            'Days': days,
+                            'Temp_C': temp,
+                            'KOH_M': koh,
+                            'Condition': f"{temp}°C, {koh}M KOH",
+                            'N_Replicates': len(group)
+                        }
+                        for col in index_cols:
+                            stats_row[f'{col}_Mean'] = group[col].mean()
+                            stats_row[f'{col}_Std'] = group[col].std() if len(group) > 1 else 0
+                            stats_row[f'{col}_SE'] = stats_row[f'{col}_Std'] / np.sqrt(len(group)) if len(group) > 1 else 0
+                        stats_data.append(stats_row)
+                
+                stats_df = pd.DataFrame(stats_data)
+                
+                # ============================================================
+                # SECTION 4: VISUALIZATION OPTIONS
+                # ============================================================
+                st.markdown("<h3 style='font-family:Arial; font-size:1.3rem; font-weight:700; margin-top:2rem;'>📈 Kinetic Analysis & Visualization</h3>", unsafe_allow_html=True)
+                
+                viz_tabs = st.tabs(["🔍 Degradation Trends", "🌡️ Arrhenius Analysis", "🗺️ Multi-Variable Mapping", "📊 Mechanism Correlation"])
+                
+                # --------------------------------------------------------
+                # TAB 1: DEGRADATION TRENDS
+                # --------------------------------------------------------
+                with viz_tabs[0]:
+                    col_v1, col_v2 = st.columns([1, 2.5])
+                    
+                    with col_v1:
+                        target_metric = st.selectbox(
+                            "Degradation Index:",
+                            ["Carbonyl_Index", "Hydroxyl_Index", "Ester_Index", "Vinyl_Index", "Chain_Integrity", "Overall_Degradation"],
+                            format_func=lambda x: x.replace('_', ' ')
                         )
-                    )
-                    st.plotly_chart(fig_kinetics, use_container_width=True, config=JOURNAL_CONFIG)
+                        
+                        show_individual = st.checkbox("Show Individual Replicates", value=True)
+                        show_error_bars = st.checkbox("Show Error Bars (±SE)", value=True)
+                        fit_kinetics = st.checkbox("Fit Kinetic Model", value=False)
+                        
+                        if fit_kinetics:
+                            kinetic_model = st.selectbox(
+                                "Model Type:",
+                                ["Zero Order (Linear)", "First Order (Exponential)", "Second Order", "Power Law"]
+                            )
                     
-                    # Export Data
-                    st.markdown("<br>", unsafe_allow_html=True)
-                    csv_k = k_df.to_csv(index=False).encode('utf-8')
+                    with col_v2:
+                        # Create scatter plot with error bars
+                        fig_trend = go.Figure()
+                        
+                        # Get unique conditions
+                        conditions = stats_df['Condition'].unique() if not stats_df.empty else []
+                        colors = px.colors.qualitative.Set2
+                        
+                        for i, cond in enumerate(conditions):
+                            cond_data = stats_df[stats_df['Condition'] == cond].sort_values('Days')
+                            color = colors[i % len(colors)]
+                            
+                            # Mean line with error bars
+                            if show_error_bars and not cond_data.empty:
+                                fig_trend.add_trace(go.Scatter(
+                                    x=cond_data['Days'],
+                                    y=cond_data[f'{target_metric}_Mean'],
+                                    error_y=dict(
+                                        type='data',
+                                        array=cond_data[f'{target_metric}_SE'],
+                                        visible=True,
+                                        thickness=1.5,
+                                        width=4
+                                    ),
+                                    mode='markers+lines',
+                                    name=cond,
+                                    marker=dict(size=10, color=color, line=dict(width=1.5, color=BLACK)),
+                                    line=dict(width=2, color=color)
+                                ))
+                            
+                            # Individual replicates
+                            if show_individual:
+                                ind_data = k_df[k_df['Condition'] == cond]
+                                fig_trend.add_trace(go.Scatter(
+                                    x=ind_data['Days'],
+                                    y=ind_data[target_metric],
+                                    mode='markers',
+                                    name=f"{cond} (raw)",
+                                    marker=dict(size=6, color=color, opacity=0.4, symbol='circle'),
+                                    showlegend=False,
+                                    hovertemplate='%{text}<br>Day: %{x}<br>Value: %{y:.4f}<extra></extra>',
+                                    text=ind_data['File']
+                                ))
+                            
+                            # Fit kinetic model if requested
+                            if fit_kinetics and len(cond_data) > 2:
+                                x_data = cond_data['Days'].values
+                                y_data = cond_data[f'{target_metric}_Mean'].values
+                                
+                                # Define models
+                                def zero_order(t, k, y0):
+                                    return y0 + k * t
+                                
+                                def first_order(t, k, y0):
+                                    return y0 * np.exp(k * t)
+                                
+                                def second_order(t, k, y0):
+                                    return 1 / (1/y0 - k * t) if y0 != 0 else y0
+                                
+                                def power_law(t, k, y0, n):
+                                    return y0 + k * t**n
+                                
+                                try:
+                                    if "Zero Order" in kinetic_model:
+                                        popt, _ = curve_fit(zero_order, x_data, y_data, p0=[0.001, y_data[0]])
+                                        x_fit = np.linspace(0, x_data.max() * 1.1, 100)
+                                        y_fit = zero_order(x_fit, *popt)
+                                        model_label = f"k={popt[0]:.2e} day⁻¹"
+                                    
+                                    elif "First Order" in kinetic_model:
+                                        popt, _ = curve_fit(first_order, x_data, y_data, p0=[0.001, y_data[0]])
+                                        x_fit = np.linspace(0, x_data.max() * 1.1, 100)
+                                        y_fit = first_order(x_fit, *popt)
+                                        model_label = f"k={popt[0]:.2e} day⁻¹"
+                                    
+                                    elif "Power Law" in kinetic_model:
+                                        popt, _ = curve_fit(power_law, x_data, y_data, p0=[0.001, y_data[0], 1.0])
+                                        x_fit = np.linspace(0, x_data.max() * 1.1, 100)
+                                        y_fit = power_law(x_fit, *popt)
+                                        model_label = f"k={popt[0]:.2e}, n={popt[2]:.2f}"
+                                    
+                                    fig_trend.add_trace(go.Scatter(
+                                        x=x_fit, y=y_fit,
+                                        mode='lines',
+                                        name=f"{cond} fit ({model_label})",
+                                        line=dict(dash='dash', width=2, color=color)
+                                    ))
+                                except Exception as e:
+                                    st.warning(f"Could not fit {kinetic_model} for {cond}: {str(e)}")
+                        
+                        fig_trend.update_layout(
+                            plot_bgcolor=PLOT_BG, paper_bgcolor=PAPER_BG,
+                            title=dict(text=f"<b>{target_metric.replace('_', ' ')} vs. Aging Time</b>", 
+                                      font=dict(family="Arial", size=16, color=BLACK)),
+                            xaxis=dict(title="<b>Aging Time (Days)</b>", **FTIR_STYLE, showgrid=True, gridcolor='rgba(0,0,0,0.1)'),
+                            yaxis=dict(title=f"<b>{target_metric.replace('_', ' ')}</b>", **FTIR_STYLE, showgrid=True, gridcolor='rgba(0,0,0,0.1)'),
+                            height=550,
+                            margin=dict(l=70, r=40, t=70, b=70),
+                            legend=dict(
+                                bgcolor=WHITE, bordercolor=BLACK, borderwidth=1,
+                                font=dict(family="Arial", size=11, color=BLACK),
+                                x=1.02, y=1, xanchor='left'
+                            ),
+                            hovermode='closest'
+                        )
+                        st.plotly_chart(fig_trend, use_container_width=True, config=JOURNAL_CONFIG)
+                
+                # --------------------------------------------------------
+                # TAB 2: ARRHENIUS ANALYSIS
+                # --------------------------------------------------------
+                with viz_tabs[1]:
+                    st.markdown("""
+                    <p style='font-size:0.9rem; color:#475569; margin-bottom:1rem;'>
+                    Arrhenius analysis determines the activation energy (Eₐ) for degradation processes. 
+                    The rate constant k follows: k = A·exp(-Eₐ/RT), where ln(k) vs. 1/T yields Eₐ from the slope.
+                    </p>
+                    """, unsafe_allow_html=True)
+                    
+                    col_a1, col_a2 = st.columns([1, 2])
+                    
+                    with col_a1:
+                        arrhenius_index = st.selectbox(
+                            "Index for Arrhenius:",
+                            ["Carbonyl_Index", "Hydroxyl_Index", "Overall_Degradation"],
+                            format_func=lambda x: x.replace('_', ' '),
+                            key='arrhenius_idx'
+                        )
+                        
+                        arrhenius_koh = st.selectbox(
+                            "KOH Concentration (M):",
+                            sorted(k_df['KOH_M'].unique()),
+                            key='arrhenius_koh'
+                        )
+                        
+                        time_point = st.number_input(
+                            "Reference Time Point (Days):",
+                            min_value=0.0,
+                            value=float(k_df['Days'].max()) if len(k_df) > 0 else 7.0,
+                            help="Compare degradation across temperatures at this specific aging time"
+                        )
+                    
+                    with col_a2:
+                        # Filter data
+                        arr_data = stats_df[
+                            (stats_df['KOH_M'] == arrhenius_koh) & 
+                            (stats_df['Days'] == time_point)
+                        ].copy()
+                        
+                        if len(arr_data) > 1:
+                            # Calculate 1/T and ln(Index)
+                            arr_data['Temp_K'] = arr_data['Temp_C'] + 273.15
+                            arr_data['InvT'] = 1000 / arr_data['Temp_K']  # 1000/T for better scaling
+                            arr_data['ln_Index'] = np.log(arr_data[f'{arrhenius_index}_Mean'])
+                            
+                            # Linear regression
+                            slope, intercept, r_value, p_value, std_err = linregress(
+                                arr_data['InvT'], arr_data['ln_Index']
+                            )
+                            
+                            # Calculate activation energy
+                            R = 8.314  # J/(mol·K)
+                            Ea_kJ = -slope * R  # kJ/mol
+                            
+                            # Create Arrhenius plot
+                            fig_arr = go.Figure()
+                            
+                            # Data points
+                            fig_arr.add_trace(go.Scatter(
+                                x=arr_data['InvT'],
+                                y=arr_data['ln_Index'],
+                                mode='markers',
+                                name='Experimental',
+                                marker=dict(size=12, color='#E74C3C', line=dict(width=2, color=BLACK)),
+                                error_y=dict(
+                                    type='data',
+                                    array=arr_data[f'{arrhenius_index}_SE'] / arr_data[f'{arrhenius_index}_Mean'],
+                                    visible=True
+                                ) if f'{arrhenius_index}_SE' in arr_data.columns else None
+                            ))
+                            
+                            # Fit line
+                            x_fit = np.linspace(arr_data['InvT'].min() * 0.95, arr_data['InvT'].max() * 1.05, 100)
+                            y_fit = slope * x_fit + intercept
+                            
+                            fig_arr.add_trace(go.Scatter(
+                                x=x_fit, y=y_fit,
+                                mode='lines',
+                                name=f'Linear Fit (R²={r_value**2:.4f})',
+                                line=dict(dash='dash', width=2, color='#3498DB')
+                            ))
+                            
+                            fig_arr.update_layout(
+                                plot_bgcolor=PLOT_BG, paper_bgcolor=PAPER_BG,
+                                title=dict(
+                                    text=f"<b>Arrhenius Plot: {arrhenius_index.replace('_', ' ')}</b><br>" + 
+                                         f"<sub>Eₐ = {Ea_kJ:.1f} kJ/mol | {arrhenius_koh}M KOH | Day {time_point}</sub>",
+                                    font=dict(family="Arial", size=15, color=BLACK)
+                                ),
+                                xaxis=dict(title="<b>1000/T (K⁻¹)</b>", **FTIR_STYLE),
+                                yaxis=dict(title=f"<b>ln({arrhenius_index.replace('_', ' ')})</b>", **FTIR_STYLE),
+                                height=500,
+                                margin=dict(l=70, r=40, t=80, b=70),
+                                annotations=[
+                                    dict(
+                                        text=f"Eₐ = {Ea_kJ:.1f} ± {std_err*R:.1f} kJ/mol<br>R² = {r_value**2:.4f}<br>p = {p_value:.3e}",
+                                        xref="paper", yref="paper",
+                                        x=0.05, y=0.95,
+                                        showarrow=False,
+                                        bgcolor="rgba(255,255,255,0.9)",
+                                        bordercolor=BLACK,
+                                        borderwidth=1,
+                                        font=dict(size=11, family="Arial")
+                                    )
+                                ]
+                            )
+                            st.plotly_chart(fig_arr, use_container_width=True, config=JOURNAL_CONFIG)
+                            
+                            # Lifetime prediction
+                            st.markdown("<h4 style='font-size:1rem; font-weight:600; margin-top:1rem;'>Lifetime Prediction</h4>", unsafe_allow_html=True)
+                            pred_temp = st.slider("Operating Temperature (°C):", 20, 80, 50)
+                            failure_criterion = st.number_input("Failure Criterion (Index Value):", 
+                                                               min_value=0.1, value=2.0, step=0.1)
+                            
+                            # Predict time to failure
+                            T_op = pred_temp + 273.15
+                            k_op = np.exp(intercept) * np.exp(-Ea_kJ * 1000 / (R * T_op))
+                            
+                            # Assuming first-order: Index = Index0 * exp(k*t)
+                            if arrhenius_index in arr_data.columns:
+                                Index0 = arr_data[f'{arrhenius_index}_Mean'].min()
+                                if k_op > 0 and failure_criterion > Index0:
+                                    t_failure = np.log(failure_criterion / Index0) / k_op
+                                    st.success(f"**Predicted time to failure at {pred_temp}°C: {t_failure:.1f} days ({t_failure/365:.2f} years)**")
+                                else:
+                                    st.warning("Cannot predict failure time with current model parameters.")
+                        else:
+                            st.warning(f"Need at least 2 different temperatures at day {time_point} with {arrhenius_koh}M KOH for Arrhenius analysis.")
+                
+                # --------------------------------------------------------
+                # TAB 3: MULTI-VARIABLE MAPPING
+                # --------------------------------------------------------
+                with viz_tabs[2]:
+                    st.markdown("<p style='font-size:0.9rem; color:#475569;'>Visualize degradation as a function of time, temperature, and KOH concentration.</p>", unsafe_allow_html=True)
+                    
+                    map_index = st.selectbox(
+                        "Degradation Index:",
+                        ["Carbonyl_Index", "Hydroxyl_Index", "Overall_Degradation"],
+                        format_func=lambda x: x.replace('_', ' '),
+                        key='map_idx'
+                    )
+                    
+                    plot_type = st.radio("Plot Type:", ["2D Contour (Temp vs Time)", "3D Surface", "Heatmap (Temp vs KOH)"], horizontal=True)
+                    
+                    if plot_type == "2D Contour (Temp vs Time)":
+                        selected_koh = st.selectbox("KOH Concentration (M):", sorted(stats_df['KOH_M'].unique()), key='contour_koh')
+                        
+                        contour_data = stats_df[stats_df['KOH_M'] == selected_koh].copy()
+                        
+                        if len(contour_data) > 3:
+                            # Create pivot table
+                            pivot = contour_data.pivot_table(
+                                values=f'{map_index}_Mean',
+                                index='Temp_C',
+                                columns='Days',
+                                aggfunc='mean'
+                            )
+                            
+                            fig_contour = go.Figure(data=go.Contour(
+                                z=pivot.values,
+                                x=pivot.columns,
+                                y=pivot.index,
+                                colorscale='RdYlBu_r',
+                                colorbar=dict(title=map_index.replace('_', ' ')),
+                                contours=dict(showlabels=True, labelfont=dict(size=10, color='white'))
+                            ))
+                            
+                            fig_contour.update_layout(
+                                plot_bgcolor=PLOT_BG, paper_bgcolor=PAPER_BG,
+                                title=f"<b>{map_index.replace('_', ' ')} - {selected_koh}M KOH</b>",
+                                xaxis=dict(title="<b>Aging Time (Days)</b>", **FTIR_STYLE),
+                                yaxis=dict(title="<b>Temperature (°C)</b>", **FTIR_STYLE),
+                                height=500
+                            )
+                            st.plotly_chart(fig_contour, use_container_width=True, config=JOURNAL_CONFIG)
+                        else:
+                            st.warning("Need more data points for contour plot.")
+                    
+                    elif plot_type == "3D Surface":
+                        selected_koh_3d = st.selectbox("KOH Concentration (M):", sorted(stats_df['KOH_M'].unique()), key='3d_koh')
+                        
+                        surface_data = stats_df[stats_df['KOH_M'] == selected_koh_3d].copy()
+                        
+                        if len(surface_data) > 3:
+                            pivot = surface_data.pivot_table(
+                                values=f'{map_index}_Mean',
+                                index='Temp_C',
+                                columns='Days',
+                                aggfunc='mean'
+                            )
+                            
+                            fig_3d = go.Figure(data=[go.Surface(
+                                z=pivot.values,
+                                x=pivot.columns,
+                                y=pivot.index,
+                                colorscale='Viridis',
+                                colorbar=dict(title=map_index.replace('_', ' '))
+                            )])
+                            
+                            fig_3d.update_layout(
+                                title=f"<b>{map_index.replace('_', ' ')} Surface</b>",
+                                scene=dict(
+                                    xaxis=dict(title='Days', backgroundcolor=PLOT_BG),
+                                    yaxis=dict(title='Temp (°C)', backgroundcolor=PLOT_BG),
+                                    zaxis=dict(title=map_index.replace('_', ' '), backgroundcolor=PLOT_BG)
+                                ),
+                                height=600
+                            )
+                            st.plotly_chart(fig_3d, use_container_width=True, config=JOURNAL_CONFIG)
+                        else:
+                            st.warning("Need more data points for 3D surface.")
+                    
+                    else:  # Heatmap
+                        selected_days = st.selectbox("Time Point (Days):", sorted(stats_df['Days'].unique()), key='heatmap_days')
+                        
+                        heatmap_data = stats_df[stats_df['Days'] == selected_days].copy()
+                        
+                        if len(heatmap_data) > 0:
+                            pivot = heatmap_data.pivot_table(
+                                values=f'{map_index}_Mean',
+                                index='Temp_C',
+                                columns='KOH_M',
+                                aggfunc='mean'
+                            )
+                            
+                            fig_heat = go.Figure(data=go.Heatmap(
+                                z=pivot.values,
+                                x=pivot.columns,
+                                y=pivot.index,
+                                colorscale='YlOrRd',
+                                colorbar=dict(title=map_index.replace('_', ' ')),
+                                text=np.round(pivot.values, 3),
+                                texttemplate='%{text}',
+                                textfont=dict(size=10)
+                            ))
+                            
+                            fig_heat.update_layout(
+                                plot_bgcolor=PLOT_BG, paper_bgcolor=PAPER_BG,
+                                title=f"<b>{map_index.replace('_', ' ')} at Day {selected_days}</b>",
+                                xaxis=dict(title="<b>KOH Concentration (M)</b>", **FTIR_STYLE),
+                                yaxis=dict(title="<b>Temperature (°C)</b>", **FTIR_STYLE),
+                                height=500
+                            )
+                            st.plotly_chart(fig_heat, use_container_width=True, config=JOURNAL_CONFIG)
+                        else:
+                            st.warning("No data available for selected time point.")
+                
+                # --------------------------------------------------------
+                # TAB 4: MECHANISM CORRELATION
+                # --------------------------------------------------------
+                with viz_tabs[3]:
+                    st.markdown("<p style='font-size:0.9rem; color:#475569;'>Analyze correlations between different degradation mechanisms and pathways.</p>", unsafe_allow_html=True)
+                    
+                    # Correlation matrix
+                    corr_indices = ['Carbonyl_Index', 'Hydroxyl_Index', 'Ester_Index', 'Vinyl_Index', 'Chain_Integrity']
+                    available_indices = [idx for idx in corr_indices if idx in k_df.columns]
+                    
+                    if len(available_indices) > 1:
+                        corr_matrix = k_df[available_indices].corr()
+                        
+                        fig_corr = go.Figure(data=go.Heatmap(
+                            z=corr_matrix.values,
+                            x=[idx.replace('_', ' ') for idx in corr_matrix.columns],
+                            y=[idx.replace('_', ' ') for idx in corr_matrix.index],
+                            colorscale='RdBu',
+                            zmid=0,
+                            colorbar=dict(title='Correlation'),
+                            text=np.round(corr_matrix.values, 2),
+                            texttemplate='%{text}',
+                            textfont=dict(size=11, color='black')
+                        ))
+                        
+                        fig_corr.update_layout(
+                            plot_bgcolor=PLOT_BG, paper_bgcolor=PAPER_BG,
+                            title="<b>Degradation Mechanism Correlation Matrix</b>",
+                            height=500,
+                            margin=dict(l=150, r=40, t=80, b=150)
+                        )
+                        st.plotly_chart(fig_corr, use_container_width=True, config=JOURNAL_CONFIG)
+                        
+                        # Scatter plot matrix
+                        st.markdown("<h4 style='font-size:1rem; font-weight:600; margin-top:1.5rem;'>Pairwise Relationships</h4>", unsafe_allow_html=True)
+                        
+                        col_m1, col_m2 = st.columns(2)
+                        with col_m1:
+                            x_mech = st.selectbox("X-axis:", available_indices, index=0, format_func=lambda x: x.replace('_', ' '))
+                        with col_m2:
+                            y_mech = st.selectbox("Y-axis:", available_indices, index=min(1, len(available_indices)-1), format_func=lambda x: x.replace('_', ' '))
+                        
+                        if x_mech != y_mech:
+                            fig_scatter = px.scatter(
+                                k_df,
+                                x=x_mech,
+                                y=y_mech,
+                                color='Condition',
+                                size='Days',
+                                hover_data=['File', 'Days', 'Temp_C', 'KOH_M'],
+                                trendline='ols'
+                            )
+                            
+                            fig_scatter.update_traces(marker=dict(line=dict(width=1, color=BLACK)))
+                            fig_scatter.update_layout(
+                                plot_bgcolor=PLOT_BG, paper_bgcolor=PAPER_BG,
+                                title=f"<b>{x_mech.replace('_', ' ')} vs {y_mech.replace('_', ' ')}</b>",
+                                xaxis=dict(title=f"<b>{x_mech.replace('_', ' ')}</b>", **FTIR_STYLE),
+                                yaxis=dict(title=f"<b>{y_mech.replace('_', ' ')}</b>", **FTIR_STYLE),
+                                height=500
+                            )
+                            st.plotly_chart(fig_scatter, use_container_width=True, config=JOURNAL_CONFIG)
+                    
+                    # Degradation pathway analysis
+                    st.markdown("<h4 style='font-size:1rem; font-weight:600; margin-top:1.5rem;'>Degradation Pathway Contribution</h4>", unsafe_allow_html=True)
+                    
+                    # Normalize all indices to relative contribution
+                    pathway_cols = ['Carbonyl_Index', 'Hydroxyl_Index', 'Ester_Index']
+                    available_pathways = [col for col in pathway_cols if col in k_df.columns]
+                    
+                    if len(available_pathways) > 1:
+                        latest_time = k_df['Days'].max()
+                        pathway_data = k_df[k_df['Days'] == latest_time].copy()
+                        
+                        if len(pathway_data) > 0:
+                            # Calculate relative contributions
+                            pathway_data['Total_Oxidation'] = pathway_data[available_pathways].sum(axis=1)
+                            for col in available_pathways:
+                                pathway_data[f'{col}_Fraction'] = pathway_data[col] / pathway_data['Total_Oxidation']
+                            
+                            # Stacked bar chart
+                            fig_pathway = go.Figure()
+                            
+                            for col in available_pathways:
+                                fig_pathway.add_trace(go.Bar(
+                                    name=col.replace('_Index', '').replace('_', ' '),
+                                    x=pathway_data['Condition'],
+                                    y=pathway_data[f'{col}_Fraction'] * 100,
+                                    text=np.round(pathway_data[f'{col}_Fraction'] * 100, 1),
+                                    texttemplate='%{text}%',
+                                    textposition='inside'
+                                ))
+                            
+                            fig_pathway.update_layout(
+                                plot_bgcolor=PLOT_BG, paper_bgcolor=PAPER_BG,
+                                title=f"<b>Degradation Pathway Distribution (Day {latest_time})</b>",
+                                xaxis=dict(title="<b>Condition</b>", **FTIR_STYLE),
+                                yaxis=dict(title="<b>Contribution (%)</b>", **FTIR_STYLE),
+                                barmode='stack',
+                                height=450,
+                                legend=dict(bgcolor=WHITE, bordercolor=BLACK, borderwidth=1)
+                            )
+                            st.plotly_chart(fig_pathway, use_container_width=True, config=JOURNAL_CONFIG)
+                
+                # ============================================================
+                # SECTION 5: DATA EXPORT
+                # ============================================================
+                st.markdown("<h3 style='font-family:Arial; font-size:1.3rem; font-weight:700; margin-top:2rem;'>💾 Export Analysis Results</h3>", unsafe_allow_html=True)
+                
+                col_e1, col_e2, col_e3 = st.columns(3)
+                
+                with col_e1:
+                    # Raw kinetics data
+                    csv_raw = k_df.to_csv(index=False).encode('utf-8')
                     st.download_button(
-                        label="📥 Download EPDM Kinetics Data (CSV)",
-                        data=csv_k,
-                        file_name="EPDM_KOH_Kinetics.csv",
+                        label="📥 Raw Kinetics Data",
+                        data=csv_raw,
+                        file_name="EPDM_Kinetics_Raw.csv",
                         mime="text/csv",
                     )
+                
+                with col_e2:
+                    # Statistical summary
+                    if not stats_df.empty:
+                        csv_stats = stats_df.to_csv(index=False).encode('utf-8')
+                        st.download_button(
+                            label="📊 Statistical Summary",
+                            data=csv_stats,
+                            file_name="EPDM_Kinetics_Statistics.csv",
+                            mime="text/csv",
+                        )
+                
+                with col_e3:
+                    # Generate comprehensive report
+                    if st.button("📄 Generate Full Report"):
+                        report_lines = [
+                            "# EPDM-KOH AGING KINETICS REPORT",
+                            f"Generated: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}",
+                            "",
+                            "## EXPERIMENTAL CONDITIONS",
+                            f"Total Spectra: {len(k_df)}",
+                            f"Time Range: {k_df['Days'].min():.1f} - {k_df['Days'].max():.1f} days",
+                            f"Temperature Range: {k_df['Temp_C'].min()} - {k_df['Temp_C'].max()} °C",
+                            f"KOH Range: {k_df['KOH_M'].min()} - {k_df['KOH_M'].max()} M",
+                            "",
+                            "## DEGRADATION INDICES (Latest Time Point)",
+                        ]
+                        
+                        latest = k_df[k_df['Days'] == k_df['Days'].max()]
+                        for idx in ['Carbonyl_Index', 'Hydroxyl_Index', 'Overall_Degradation']:
+                            if idx in latest.columns:
+                                report_lines.append(f"{idx}: {latest[idx].mean():.4f} ± {latest[idx].std():.4f}")
+                        
+                        report_lines.extend([
+                            "",
+                            "## STATISTICAL SUMMARY",
+                            stats_df.to_string(),
+                            "",
+                            "## RAW DATA",
+                            k_df.to_string()
+                        ])
+                        
+                        report_text = "\n".join(report_lines)
+                        st.download_button(
+                            label="💾 Download Report (TXT)",
+                            data=report_text.encode('utf-8'),
+                            file_name="EPDM_Aging_Report.txt",
+                            mime="text/plain"
+                        )
 else:
     # --- Empty State UI ---
     st.markdown("""
