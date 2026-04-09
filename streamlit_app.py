@@ -673,7 +673,7 @@ if not master.empty:
         "🧠 PCA Clustering", 
         "🧪 Spectral Match", 
         "📊 Data Export",
-        "📚 Method"
+        "📚 Methods"
     ])
 
     # ---------------------------
@@ -1022,7 +1022,7 @@ if not master.empty:
     # TAB 8: METHODOLOGIES
     # ---------------------------
     with tab8:
-        section_title("Method", "📚")
+        section_title("Analytical Methodologies & Algorithms", "📚")
         
         st.markdown("""
         <div style="font-family:'IBM Plex Sans',sans-serif; font-size:0.9rem; color:#000000; line-height:1.6;">
