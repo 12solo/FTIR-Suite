@@ -903,7 +903,7 @@ if not master.empty:
     # TAB 5: PCA CLUSTERING
     # ---------------------------
     with tab5:
-        section_title("Principal Component Analysis (PCA)", "🧠")
+        section_title("PCA", "🧠")
         
         with st.expander("ℹ️ How to interpret this PCA Plot"):
             st.markdown("""
@@ -998,7 +998,7 @@ if not master.empty:
     # TAB 7: DATA MATRIX
     # ---------------------------
     with tab7:
-        section_title("Data Matrix Export", "📊")
+        section_title("Data Export", "📊")
         st.markdown("<p style='color:#000000;'>Interpolates all processed spectra onto a unified wavenumber axis for external machine learning or plotting.</p>", unsafe_allow_html=True)
         
         common_wn = np.linspace(4000, 400, 1500)
@@ -1022,7 +1022,7 @@ if not master.empty:
     # TAB 8: METHODOLOGIES
     # ---------------------------
     with tab8:
-        section_title("Analytical Methodologies & Algorithms", "📚")
+        section_title("Method", "📚")
         
         st.markdown("""
         <div style="font-family:'IBM Plex Sans',sans-serif; font-size:0.9rem; color:#000000; line-height:1.6;">
