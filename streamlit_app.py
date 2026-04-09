@@ -1219,7 +1219,6 @@ if not master.empty:
                 st.markdown("<h4 style='font-family:Arial; font-size:1.05rem; font-weight:600;'>Aging Conditions</h4>", unsafe_allow_html=True)
                 st.markdown("<p style='font-size:0.88rem; color:#475569;'>Assign precise aging conditions. Use replicates for statistical rigor.</p>", unsafe_allow_html=True)
                 
-                # Initialize metadata with replicate tracking safely
                 if 'epdm_metadata_adv' not in st.session_state or \
                    len(st.session_state['epdm_metadata_adv']) != len(master) or \
                    'Replicate_ID' not in st.session_state['epdm_metadata_adv'].columns:
@@ -1487,8 +1486,8 @@ if not master.empty:
                         fig_trend_adv.update_layout(
                             plot_bgcolor=PLOT_BG, paper_bgcolor=PAPER_BG,
                             title=dict(text=f"<b>{target_metric_adv.replace('_', ' ')} vs. Aging Time</b>", font=dict(family="Arial", size=16, color=BLACK)),
-                           xaxis={**FTIR_STYLE, "title": "<b>Aging Time (Days)</b>", "showgrid": True, "gridcolor": "rgba(0,0,0,0.1)"},
-                           yaxis={**FTIR_STYLE, "title": f"<b>{target_metric_adv.replace('_', ' ')}</b>", "showgrid": True, "gridcolor": "rgba(0,0,0,0.1)"},
+                            xaxis={**FTIR_STYLE, "title": "<b>Aging Time (Days)</b>", "showgrid": True, "gridcolor": "rgba(0,0,0,0.1)"},
+                            yaxis={**FTIR_STYLE, "title": f"<b>{target_metric_adv.replace('_', ' ')}</b>", "showgrid": True, "gridcolor": "rgba(0,0,0,0.1)"},
                             height=550, margin=dict(l=70, r=40, t=70, b=70),
                             legend=dict(bgcolor=WHITE, bordercolor=BLACK, borderwidth=1, font=dict(family="Arial", size=11, color=BLACK), x=1.02, y=1, xanchor='left'),
                             hovermode='closest'
@@ -1608,6 +1607,150 @@ if not master.empty:
                     if not stats_df_adv.empty:
                         csv_stats = stats_df_adv.to_csv(index=False).encode('utf-8')
                         st.download_button(label="📊 Statistical Summary", data=csv_stats, file_name="EPDM_Kinetics_Stats_Advanced.csv", mime="text/csv", key="dl_stats_adv")
+
+            # ============================================================
+            # SECTION 6: QUICK REFERENCE GUIDE
+            # ============================================================
+            st.markdown("<hr style='margin-top:3rem; margin-bottom:2rem;'>", unsafe_allow_html=True)
+            st.markdown("<h3 style='font-family:Arial; font-size:1.3rem; font-weight:700; color:#c9a84c;'>📖 Quick Reference Guide</h3>", unsafe_allow_html=True)
+            st.markdown("<p style='font-size:0.95rem; color:#475569; margin-bottom: 1.5rem;'>Essential parameters, calculations, and standards for EPDM degradation research.</p>", unsafe_allow_html=True)
+
+            with st.expander("🔬 Peak Assignments & Method Selection", expanded=False):
+                st.markdown("""
+                #### Target Peaks (cm⁻¹)
+                | Peak | Assignment | Default | Typical Range | Degradation Indicator |
+                |---|---|---|---|---|
+                | **Reference** | CH₂ backbone | 1460 | 1450-1465 | Should remain stable |
+                | **Carbonyl** | C=O oxidation | 1715 | 1700-1730 | ⬆️ Oxidative damage |
+                | **Hydroxyl** | O-H stretch | 3400 | 3200-3600 | ⬆️ Water uptake/hydrolysis |
+                | **Ester** | C-O-C stretch | 1240 | 1230-1250 | ⬆️ Secondary oxidation |
+                | **Vinyl** | C=C stretch | 1640 | 1630-1650 | ⬇️ Chain scission |
+                | **Methyl** | CH₃ bend | 1380 | 1370-1390 | ⬇️ Severe degradation |
+                
+                *Integration Window Recommendation: 15 cm⁻¹ (standard), 25 cm⁻¹ (broad peaks), 10 cm⁻¹ (sharp peaks)*
+                
+                <hr>
+                
+                #### Analysis Method Selection
+                | Method | Speed | Accuracy | When to Use |
+                |---|---|---|---|
+                | **Peak Height** | ⚡⚡⚡ Fast | ⭐⭐ Good | Screening, high SNR, well-resolved peaks |
+                | **Area Integration** | ⚡⚡ Moderate | ⭐⭐⭐ Better | Quantitative analysis, publication data |
+                | **Deconvolution** | ⚡ Slow | ⭐⭐⭐⭐ Best | Overlapping peaks, complex spectra |
+                """, unsafe_allow_html=True)
+
+            with st.expander("📈 Degradation Indices & Kinetic Models", expanded=False):
+                col_g1, col_g2 = st.columns(2)
+                with col_g1:
+                    st.markdown("""
+                    #### Carbonyl Index (CI)
+                    * `0.0 - 0.5`: ✅ Minimal oxidation (safe)
+                    * `0.5 - 1.0`: ⚠️ Mild degradation (monitor)
+                    * `1.0 - 2.0`: ⚠️ Moderate degradation (plan replacement)
+                    * `> 2.0`: 🔴 Severe degradation (replace immediately)
+                    
+                    #### Hydroxyl Index (HI)
+                    * `0.0 - 1.0`: ✅ Minimal swelling
+                    * `1.0 - 2.0`: ⚠️ Moderate swelling
+                    * `2.0 - 4.0`: ⚠️ Significant hydrolysis
+                    * `> 4.0`: 🔴 Seal failure likely
+                    """)
+                with col_g2:
+                    st.markdown("""
+                    #### Combined Assessment
+                    * **CI ↑↑, HI ↑:** Synergistic degradation (harsh conditions)
+                    * **CI ↑↑, HI →:** Oxidation dominant (high temp, low KOH)
+                    * **CI →, HI ↑↑:** Hydrolysis dominant (moderate temp, high KOH)
+                    * **CI ↑, HI ↑:** Normal aging (balanced mechanisms)
+                    """)
+                    
+                st.markdown("""
+                <hr>
+                
+                #### Kinetic Model Selection
+                | Model | Equation | Signature | When to Use |
+                |---|---|---|---|
+                | **Zero Order** | y = y₀ + kt | Linear increase | Surface erosion, constant exposure |
+                | **First Order** | y = y₀·exp(kt) | Exponential growth | Bulk oxidation (most common, ~80%) |
+                | **Second Order** | 1/y = 1/y₀ - kt | Hyperbolic | Site depletion (rare in EPDM) |
+                | **Power Law** | y = y₀ + ktⁿ | Variable slope | Complex multi-step processes |
+                """, unsafe_allow_html=True)
+
+            with st.expander("🌡️ Arrhenius Analysis & Lifetime Prediction", expanded=False):
+                st.markdown("""
+                #### Arrhenius Requirements Checklist
+                * [ ] ≥3 temperatures tested
+                * [ ] Same time point across all temps
+                * [ ] Time point in linear degradation region (30-70% of failure)
+                * [ ] Same KOH concentration
+                
+                #### Quality Indicators (R²)
+                * ✅ **> 0.95:** Excellent Arrhenius behavior
+                * ⚠️ **0.90 - 0.95:** Acceptable, use with caution
+                * 🔴 **< 0.90:** Poor fit, mechanism may change with temperature
+                
+                #### Activation Energy (Eₐ) Expected Ranges
+                * **40-60 kJ/mol:** Alkaline hydrolysis
+                * **60-80 kJ/mol:** Thermo-oxidation *(Expected for EPDM)*
+                * **80-120 kJ/mol:** Radical/crosslinking processes
+                * **> 120 kJ/mol:** Verify data quality (likely error)
+                
+                #### Lifetime Extrapolation Confidence
+                * **High:** Extrapolation < 20°C from test range
+                * **Moderate:** Extrapolation 20-40°C
+                * **Low:** Extrapolation > 40°C (mechanism may shift)
+                """)
+
+            with st.expander("🧪 Experimental Design & FTIR Settings", expanded=False):
+                st.markdown("""
+                #### Experimental Design Templates
+                * **Screening Design (32 spectra):** 65°C, 80°C | 1.0M, 2.0M KOH | Days 0,3,7,14 | n=2
+                * **Standard Design (135 spectra):** 50°C, 65°C, 80°C | 0.5M, 1.0M, 2.0M KOH | Days 0,1,3,7,14 | n=3
+                * **Arrhenius Design (48 spectra):** 50°C, 65°C, 80°C, 95°C | 1.0M KOH | Days 0,3,7,14 | n=3
+                
+                #### FTIR Acquisition Protocols
+                **Standard Protocol (Recommended)**
+                * Resolution: 4 cm⁻¹ | Scans: 32 co-added | Background: Every 30 min
+                * Preparation: IPA wipe, air dry 5 min, mark sample for consistent ATR spot
+                
+                **High-Resolution Protocol**
+                * Resolution: 2 cm⁻¹ | Scans: 64 co-added | Background: Every 15 min
+                """)
+
+            with st.expander("📊 Data Quality, Stats & Visualization", expanded=False):
+                st.markdown("""
+                #### Data Quality Metrics
+                **Replicate Variability (CV%):**
+                ✅ < 5% (Excellent) | ⚠️ 5-10% (Acceptable) | 🔴 > 15% (Unacceptable)
+                
+                #### Statistical Tests
+                * **Two Conditions (n≥3):** Student's t-test or Mann-Whitney (p < 0.05)
+                * **Multiple Conditions (n≥3):** One-way ANOVA + Tukey post-hoc (p < 0.05)
+                * **Correlation (n≥10):** Pearson's r. (>0.8 Strong, 0.5-0.8 Moderate, <0.5 Weak)
+                """)
+
+            with st.expander("📝 Publication Checklist & Troubleshooting", expanded=False):
+                st.markdown("""
+                #### Publication Checklist
+                * **Methods:** EPDM grade specified, cure system/time/temp reported, sample thickness, precise aging conditions, FTIR settings, normalization method, statistical tests.
+                * **Results:** Error bars (±SE) on all plots, sample size (n) reported, p-values indicated, Eₐ with confidence intervals, R² values for models.
+                
+                #### Troubleshooting
+                * **Poor R² in Arrhenius?** Temp range too narrow (add temps), mechanism changed (restrict range), or insufficient time points.
+                * **High replicate variability?** Sample inhomogeneity (use thinner samples), inconsistent prep, or spectral drift (run background more often).
+                
+                #### ❌ Common Mistakes to Avoid
+                1. Using peak height for overlapping bands (Use deconvolution).
+                2. Extrapolating Arrhenius > 40°C without real-time validation.
+                3. Ignoring replicates (n≥3 is mandatory).
+                4. Failing to baseline correct before integration.
+                """)
+
+            with st.expander("🧮 Quick Calculation Formulas", expanded=False):
+                st.latex(r"\text{Standard Error (SE)} = \frac{\sigma}{\sqrt{n}}")
+                st.latex(r"\text{Coefficient of Variation (CV\%)} = \left(\frac{\sigma}{\mu}\right) \times 100")
+                st.latex(r"\text{Activation Energy (E}_a\text{)} = -\text{slope} \times R \times 1000 \quad \text{[kJ/mol]}")
+                st.latex(r"\text{Time to Failure (First Order)} = \frac{\ln(\text{Index}_{\text{fail}} / \text{Index}_0)}{k}")
 else:
     # --- Empty State UI ---
     st.markdown("""
