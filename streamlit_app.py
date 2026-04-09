@@ -1390,10 +1390,28 @@ if not master.empty:
                 stats_df_adv = pd.DataFrame(stats_data_adv)
                 
                 # ============================================================
-                # SECTION 4: VISUALIZATION OPTIONS
+                # SECTION 4: VISUALIZATION OPTIONS & KINETIC MODELING
                 # ============================================================
                 st.markdown("<h3 style='font-family:Arial; font-size:1.3rem; font-weight:700; margin-top:2rem;'>📈 Kinetic Analysis & Visualization</h3>", unsafe_allow_html=True)
                 
+                with st.expander("🔬 Kinetic Model Equations & Theory", expanded=False):
+                    st.markdown("""
+                    **Phenomenological Kinetic Models**
+                    Degradation of EPDM in alkaline environments involves complex overlapping mechanisms (hydrolysis, thermo-oxidation, chain scission). Phenomenological models are fitted to extract the apparent rate constant ($k$) for comparative analysis.
+                    """)
+                    col_eq1, col_eq2 = st.columns(2)
+                    with col_eq1:
+                        st.markdown("**Zero-Order (Diffusion-Limited / Surface Erosion)**")
+                        st.latex(r"I(t) = I_0 + kt")
+                        st.markdown("**First-Order (Auto-oxidation / Bulk Degradation)**")
+                        st.latex(r"I(t) = I_0 \exp(kt)")
+                    with col_eq2:
+                        st.markdown("**Second-Order (Bimolecular / Site Depletion)**")
+                        st.latex(r"\frac{1}{I(t)} = \frac{1}{I_0} - kt")
+                        st.markdown("**Power Law (Multi-Step Complex Pathways)**")
+                        st.latex(r"I(t) = I_0 + kt^n")
+                    st.markdown("*Where $I(t)$ is the degradation index at time $t$, $I_0$ is the initial index, $k$ is the apparent rate constant, and $n$ is the kinetic exponent.*")
+
                 viz_tabs = st.tabs(["🔍 Degradation Trends", "🌡️ Arrhenius Analysis", "🗺️ Multi-Variable Mapping", "📊 Mechanism Correlation"])
                 
                 # --------------------------------------------------------
@@ -1609,148 +1627,85 @@ if not master.empty:
                         st.download_button(label="📊 Statistical Summary", data=csv_stats, file_name="EPDM_Kinetics_Stats_Advanced.csv", mime="text/csv", key="dl_stats_adv")
 
             # ============================================================
-            # SECTION 6: QUICK REFERENCE GUIDE
+            # SECTION 6: SCIENTIFIC REFERENCE & METHODOLOGICAL FRAMEWORK
             # ============================================================
             st.markdown("<hr style='margin-top:3rem; margin-bottom:2rem;'>", unsafe_allow_html=True)
-            st.markdown("<h3 style='font-family:Arial; font-size:1.3rem; font-weight:700; color:#c9a84c;'>📖 Quick Reference Guide</h3>", unsafe_allow_html=True)
-            st.markdown("<p style='font-size:0.95rem; color:#475569; margin-bottom: 1.5rem;'>Essential parameters, calculations, and standards for EPDM degradation research.</p>", unsafe_allow_html=True)
+            st.markdown("<h3 style='font-family:Arial; font-size:1.3rem; font-weight:700; color:#c9a84c;'>📖 Scientific Reference & Methodological Framework</h3>", unsafe_allow_html=True)
+            st.markdown("<p style='font-size:0.95rem; color:#475569; margin-bottom: 1.5rem;'>Theoretical foundations, validated parameters, and peer-reviewed methodologies for EPDM degradation in alkaline media.</p>", unsafe_allow_html=True)
 
-            with st.expander("🔬 Peak Assignments & Method Selection", expanded=False):
+            with st.expander("🔬 1. Spectral Band Assignments & Structural Indices", expanded=False):
                 st.markdown("""
-                #### Target Peaks (cm⁻¹)
-                | Peak | Assignment | Default | Typical Range | Degradation Indicator |
-                |---|---|---|---|---|
-                | **Reference** | CH₂ backbone | 1460 | 1450-1465 | Should remain stable |
-                | **Carbonyl** | C=O oxidation | 1715 | 1700-1730 | ⬆️ Oxidative damage |
-                | **Hydroxyl** | O-H stretch | 3400 | 3200-3600 | ⬆️ Water uptake/hydrolysis |
-                | **Ester** | C-O-C stretch | 1240 | 1230-1250 | ⬆️ Secondary oxidation |
-                | **Vinyl** | C=C stretch | 1640 | 1630-1650 | ⬇️ Chain scission |
-                | **Methyl** | CH₃ bend | 1380 | 1370-1390 | ⬇️ Severe degradation |
+                #### Mid-IR Characteristic Frequencies for EPDM
+                FTIR-ATR tracking of EPDM relies on normalizing transient degradation species against the chemically stable aliphatic backbone (Koenig, 1999).
                 
-                *Integration Window Recommendation: 15 cm⁻¹ (standard), 25 cm⁻¹ (broad peaks), 10 cm⁻¹ (sharp peaks)*
-                
-                <hr>
-                
-                #### Analysis Method Selection
-                | Method | Speed | Accuracy | When to Use |
-                |---|---|---|---|
-                | **Peak Height** | ⚡⚡⚡ Fast | ⭐⭐ Good | Screening, high SNR, well-resolved peaks |
-                | **Area Integration** | ⚡⚡ Moderate | ⭐⭐⭐ Better | Quantitative analysis, publication data |
-                | **Deconvolution** | ⚡ Slow | ⭐⭐⭐⭐ Best | Overlapping peaks, complex spectra |
-                """, unsafe_allow_html=True)
+                | Wavenumber (cm⁻¹) | Vibrational Mode | Structural Assignment | Kinetic Significance |
+                | :--- | :--- | :--- | :--- |
+                | **1460 ± 5** | $\delta(CH_2)$ scissoring | Backbone Methylene | **Internal Reference ($I_0$)**. Assumed invariant during early-to-mid stage aging. |
+                | **1715 ± 15** | $\nu(C=O)$ stretching | Carbonyls (Ketones/Acids) | Primary thermo-oxidative degradation product. |
+                | **3400 ± 100** | $\nu(O-H)$ stretching | Hydroperoxides / Free Water | Precursor to chain scission; indicator of alkaline hydrolysis/swelling. |
+                | **1240 ± 10** | $\nu(C-O-C)$ stretching | Esters / Ethers | Secondary oxidation products; crosslinking via etherification. |
+                | **1640 ± 10** | $\nu(C=C)$ stretching | Residual ENB/VNB Diene | Depletion indicates active crosslinking or electrophilic attack. |
+                | **1380 ± 5** | $\delta(CH_3)$ symmetric | Propylene Methyl Group | Loss indicates severe polymer backbone fragmentation. |
 
-            with st.expander("📈 Degradation Indices & Kinetic Models", expanded=False):
-                col_g1, col_g2 = st.columns(2)
-                with col_g1:
-                    st.markdown("""
-                    #### Carbonyl Index (CI)
-                    * `0.0 - 0.5`: ✅ Minimal oxidation (safe)
-                    * `0.5 - 1.0`: ⚠️ Mild degradation (monitor)
-                    * `1.0 - 2.0`: ⚠️ Moderate degradation (plan replacement)
-                    * `> 2.0`: 🔴 Severe degradation (replace immediately)
-                    
-                    #### Hydroxyl Index (HI)
-                    * `0.0 - 1.0`: ✅ Minimal swelling
-                    * `1.0 - 2.0`: ⚠️ Moderate swelling
-                    * `2.0 - 4.0`: ⚠️ Significant hydrolysis
-                    * `> 4.0`: 🔴 Seal failure likely
-                    """)
-                with col_g2:
-                    st.markdown("""
-                    #### Combined Assessment
-                    * **CI ↑↑, HI ↑:** Synergistic degradation (harsh conditions)
-                    * **CI ↑↑, HI →:** Oxidation dominant (high temp, low KOH)
-                    * **CI →, HI ↑↑:** Hydrolysis dominant (moderate temp, high KOH)
-                    * **CI ↑, HI ↑:** Normal aging (balanced mechanisms)
-                    """)
-                    
-                st.markdown("""
-                <hr>
-                
-                #### Kinetic Model Selection
-                | Model | Equation | Signature | When to Use |
-                |---|---|---|---|
-                | **Zero Order** | y = y₀ + kt | Linear increase | Surface erosion, constant exposure |
-                | **First Order** | y = y₀·exp(kt) | Exponential growth | Bulk oxidation (most common, ~80%) |
-                | **Second Order** | 1/y = 1/y₀ - kt | Hyperbolic | Site depletion (rare in EPDM) |
-                | **Power Law** | y = y₀ + ktⁿ | Variable slope | Complex multi-step processes |
-                """, unsafe_allow_html=True)
+                **Calculation of Structural Indices ($SI$)**
+                Indices are calculated as a dimensionless ratio of the integrated absorbance ($A$) of the functional group to the reference band:
+                """)
+                st.latex(r"SI_{group} = \frac{\int_{\nu_1}^{\nu_2} A_{group}(\nu) \, d\nu}{\int_{\nu_3}^{\nu_4} A_{ref}(\nu) \, d\nu}")
 
-            with st.expander("🌡️ Arrhenius Analysis & Lifetime Prediction", expanded=False):
+            with st.expander("📈 2. Phenomenological Kinetics & Degradation Pathways", expanded=False):
                 st.markdown("""
-                #### Arrhenius Requirements Checklist
-                * [ ] ≥3 temperatures tested
-                * [ ] Same time point across all temps
-                * [ ] Time point in linear degradation region (30-70% of failure)
-                * [ ] Same KOH concentration
+                #### Oxidation & Hydrolysis Mechanisms
+                EPDM degradation in KOH ($OH^-$) at elevated temperatures exhibits competitive kinetic pathways:
+                1.  **Thermo-oxidation (Radical Chain Mechanism):** Initiation via hydrogen abstraction at the allylic positions of the diene monomer, followed by propagation to form hydroperoxides ($3400 \text{ cm}^{-1}$), terminating in carbonyls ($1715 \text{ cm}^{-1}$) (Celina et al., 2005).
+                2.  **Alkaline Hydrolysis:** High $pH$ environments accelerate the cleavage of susceptible bonds and increase chain mobility, facilitating water ingress.
                 
-                #### Quality Indicators (R²)
-                * ✅ **> 0.95:** Excellent Arrhenius behavior
-                * ⚠️ **0.90 - 0.95:** Acceptable, use with caution
-                * 🔴 **< 0.90:** Poor fit, mechanism may change with temperature
-                
-                #### Activation Energy (Eₐ) Expected Ranges
-                * **40-60 kJ/mol:** Alkaline hydrolysis
-                * **60-80 kJ/mol:** Thermo-oxidation *(Expected for EPDM)*
-                * **80-120 kJ/mol:** Radical/crosslinking processes
-                * **> 120 kJ/mol:** Verify data quality (likely error)
-                
-                #### Lifetime Extrapolation Confidence
-                * **High:** Extrapolation < 20°C from test range
-                * **Moderate:** Extrapolation 20-40°C
-                * **Low:** Extrapolation > 40°C (mechanism may shift)
+                #### Model Selection Criteria
+                * **First-Order ($R^2 > 0.95$):** Indicates degradation is proportional to the concentration of intact polymer chains (classic bulk oxidation).
+                * **Zero-Order ($R^2 > 0.95$):** Suggests degradation is strictly limited by the diffusion of oxygen/KOH into the polymer matrix (surface-limited erosion).
                 """)
 
-            with st.expander("🧪 Experimental Design & FTIR Settings", expanded=False):
+            with st.expander("🌡️ 3. Arrhenius Thermodynamics & Life Prediction", expanded=False):
                 st.markdown("""
-                #### Experimental Design Templates
-                * **Screening Design (32 spectra):** 65°C, 80°C | 1.0M, 2.0M KOH | Days 0,3,7,14 | n=2
-                * **Standard Design (135 spectra):** 50°C, 65°C, 80°C | 0.5M, 1.0M, 2.0M KOH | Days 0,1,3,7,14 | n=3
-                * **Arrhenius Design (48 spectra):** 50°C, 65°C, 80°C, 95°C | 1.0M KOH | Days 0,3,7,14 | n=3
-                
-                #### FTIR Acquisition Protocols
-                **Standard Protocol (Recommended)**
-                * Resolution: 4 cm⁻¹ | Scans: 32 co-added | Background: Every 30 min
-                * Preparation: IPA wipe, air dry 5 min, mark sample for consistent ATR spot
-                
-                **High-Resolution Protocol**
-                * Resolution: 2 cm⁻¹ | Scans: 64 co-added | Background: Every 15 min
+                #### Arrhenius Activation Energy ($E_a$)
+                The temperature dependence of the degradation rate constant ($k$) is modeled using the Arrhenius equation (Gillen et al., 2005):
+                """)
+                st.latex(r"k(T) = A \exp\left(\frac{-E_a}{RT}\right)")
+                st.markdown("""
+                Linearization via natural logarithm yields the classical Arrhenius plot:
+                """)
+                st.latex(r"\ln(k) = \ln(A) - \frac{E_a}{R}\left(\frac{1}{T}\right)")
+                st.markdown("""
+                *Where:*
+                * $E_a$ = Apparent activation energy ($\text{J}\cdot\text{mol}^{-1}$)
+                * $R$ = Universal gas constant ($8.314 \text{ J}\cdot\text{mol}^{-1}\cdot\text{K}^{-1}$)
+                * $T$ = Absolute temperature ($\text{K}$)
+
+                #### Predictive Lifetime Extrapolation ($t_f$)
+                Assuming pseudo-first-order kinetics, the time to reach a critical failure index ($I_f$) at a specific operational temperature ($T_{op}$) is:
+                """)
+                st.latex(r"t_f = \frac{\ln(I_f / I_0)}{A \exp(-E_a / R T_{op})}")
+                st.markdown("""
+                **Extrapolation Limits:** Lifetime predictions are highly reliable within $\pm 20^\circ\text{C}$ of the empirical test range. Extrapolations beyond this risk encountering polymer phase transitions (e.g., $T_g$, $T_m$) which invalidate the linear Arrhenius assumption (Wise et al., 1995).
                 """)
 
-            with st.expander("📊 Data Quality, Stats & Visualization", expanded=False):
+            with st.expander("📊 4. Statistical Rigor & Data Quality Standards", expanded=False):
                 st.markdown("""
-                #### Data Quality Metrics
-                **Replicate Variability (CV%):**
-                ✅ < 5% (Excellent) | ⚠️ 5-10% (Acceptable) | 🔴 > 15% (Unacceptable)
+                #### Replicate Confidence
+                * **Sample Size ($n$):** A minimum of $n=3$ distinct spatial measurements per sample is required to account for surface heterogeneity.
+                * **Standard Error of the Mean (SE):** Calculated as $SE = \sigma / \sqrt{n}$. All trend visualizations must include $\pm 1$ SE bounded error bars.
                 
-                #### Statistical Tests
-                * **Two Conditions (n≥3):** Student's t-test or Mann-Whitney (p < 0.05)
-                * **Multiple Conditions (n≥3):** One-way ANOVA + Tukey post-hoc (p < 0.05)
-                * **Correlation (n≥10):** Pearson's r. (>0.8 Strong, 0.5-0.8 Moderate, <0.5 Weak)
+                #### Instrument Parameters for Publication
+                * **Resolution:** Minimum $4 \text{ cm}^{-1}$ to properly resolve the 1715/1640 complex.
+                * **Signal-to-Noise (SNR):** The baseline noise (evaluated at $2000-1800 \text{ cm}^{-1}$) must be $< 0.002$ Absorbance Units. Increase co-added scans (typically $32-64$) if SNR is insufficient.
                 """)
 
-            with st.expander("📝 Publication Checklist & Troubleshooting", expanded=False):
+            with st.expander("📚 5. Literature Cited", expanded=False):
                 st.markdown("""
-                #### Publication Checklist
-                * **Methods:** EPDM grade specified, cure system/time/temp reported, sample thickness, precise aging conditions, FTIR settings, normalization method, statistical tests.
-                * **Results:** Error bars (±SE) on all plots, sample size (n) reported, p-values indicated, Eₐ with confidence intervals, R² values for models.
-                
-                #### Troubleshooting
-                * **Poor R² in Arrhenius?** Temp range too narrow (add temps), mechanism changed (restrict range), or insufficient time points.
-                * **High replicate variability?** Sample inhomogeneity (use thinner samples), inconsistent prep, or spectral drift (run background more often).
-                
-                #### ❌ Common Mistakes to Avoid
-                1. Using peak height for overlapping bands (Use deconvolution).
-                2. Extrapolating Arrhenius > 40°C without real-time validation.
-                3. Ignoring replicates (n≥3 is mandatory).
-                4. Failing to baseline correct before integration.
+                1. **Koenig, J. L. (1999).** *Spectroscopy of Polymers* (2nd ed.). Elsevier. (Provides foundational basis for mid-IR vibrational assignments in polyolefins).
+                2. **Celina, M., Gillen, K. T., & Assink, R. A. (2005).** Accelerated aging and lifetime prediction: Review of non-Arrhenius behaviour due to two competing processes. *Polymer Degradation and Stability*, 90(3), 395-404.
+                3. **Gillen, K. T., Celina, M., & Clough, R. L. (2005).** Density profiling techniques for monitoring polymer degradation. *Polymer Degradation and Stability*, 87(2), 221-228.
+                4. **Wise, J., Gillen, K. T., & Clough, R. L. (1995).** Time-temperature superposition formulation for predicting polymer degradation rates. *Polymer*, 36(2), 405-414.
                 """)
-
-            with st.expander("🧮 Quick Calculation Formulas", expanded=False):
-                st.latex(r"\text{Standard Error (SE)} = \frac{\sigma}{\sqrt{n}}")
-                st.latex(r"\text{Coefficient of Variation (CV\%)} = \left(\frac{\sigma}{\mu}\right) \times 100")
-                st.latex(r"\text{Activation Energy (E}_a\text{)} = -\text{slope} \times R \times 1000 \quad \text{[kJ/mol]}")
-                st.latex(r"\text{Time to Failure (First Order)} = \frac{\ln(\text{Index}_{\text{fail}} / \text{Index}_0)}{k}")
 else:
     # --- Empty State UI ---
     st.markdown("""
