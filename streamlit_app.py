@@ -1634,7 +1634,7 @@ if not master.empty:
             st.markdown("<p style='font-size:0.95rem; color:#475569; margin-bottom: 1.5rem;'>Theoretical foundations, validated parameters, and peer-reviewed methodologies for EPDM degradation in alkaline media.</p>", unsafe_allow_html=True)
 
             with st.expander("🔬 1. Spectral Band Assignments & Structural Indices", expanded=False):
-                st.markdown("""
+                st.markdown(r"""
                 #### Mid-IR Characteristic Frequencies for EPDM
                 FTIR-ATR tracking of EPDM relies on normalizing transient degradation species against the chemically stable aliphatic backbone (Koenig, 1999).
                 
