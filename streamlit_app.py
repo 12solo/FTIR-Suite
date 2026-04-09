@@ -665,14 +665,15 @@ if not master.empty:
     k4.markdown(metric_card("Baseline/Smooth", "ON" if apply_baseline else "OFF", ""), unsafe_allow_html=True)
     st.markdown("<div style='height:1rem'></div>", unsafe_allow_html=True)
 
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
         "📉 Primary Spectra", 
         "🔬 2nd Derivative", 
         "📋 Peak Assignments", 
         "📈 Deconvolution", 
         "🧠 PCA Clustering", 
         "🧪 Spectral Match", 
-        "📊 Data Matrix Export"
+        "📊 Data Matrix Export",
+        "📚 Methodologies"
     ])
 
     # ---------------------------
@@ -1017,7 +1018,52 @@ if not master.empty:
             f"FTIR_Matrix_{display_mode[:3]}.csv"
         )
         st.dataframe(matrix_df.head(15), use_container_width=True)
+# ---------------------------
+    # TAB 8: METHODOLOGIES
+    # ---------------------------
+    with tab8:
+        section_title("Analytical Methodologies & Algorithms", "📚")
+        
+        st.markdown("""
+        <div style="font-family:'IBM Plex Sans',sans-serif; font-size:0.9rem; color:#000000; line-height:1.6;">
+        This suite implements standard chemometric and spectral processing algorithms. The following methodologies dictate the data pipeline:
 
+        <br><h4 style="font-family:'Playfair Display',serif; color:#c9a84c; margin-bottom:0.2rem;">1. Spectral Preprocessing</h4>
+        <b>Transmittance to Absorbance Conversion</b><br>
+        For transmittance data, the conversion to absorbance (A) is calculated as:
+        <br><i>A = 2 - log₁₀(%T)</i><br><br>
+
+        <b>Attenuated Total Reflectance (ATR) Correction</b><br>
+        ATR spectra exhibit a wavenumber-dependent penetration depth. The correction scales the absorbance by the wavenumber (ν) to simulate a transmission spectrum:
+        <br><i>A_corrected = A_raw × (ν / 1000)</i><br><br>
+
+        <b>Savitzky-Golay Smoothing</b><br>
+        A local polynomial regression is fitted to a sliding window of consecutive data points. This increases the signal-to-noise ratio without significantly distorting the signal morphology.<br><br>
+
+        <b>Asymmetric Least Squares (ALS) Baseline Correction</b><br>
+        The ALS algorithm estimates the baseline <i>z</i> for a given spectrum <i>y</i> by minimizing the penalized least squares objective function:
+        <br><i>S = Σ w_i(y_i - z_i)² + λ Σ(Δ²z_i)²</i><br>
+        where <i>w_i</i> is an asymmetric weighting function (p if y_i > z_i, and 1-p otherwise), λ controls the baseline stiffness, and Δ² is the second difference operator.
+
+        <br><br><h4 style="font-family:'Playfair Display',serif; color:#c9a84c; margin-bottom:0.2rem;">2. Spectral Resolution & Deconvolution</h4>
+        <b>Second Derivative Spectroscopy</b><br>
+        Calculated using the Savitzky-Golay method, the second derivative (d²A/dν²) isolates overlapping bands and eliminates constant and linear baseline offsets. Peak maxima in original absorbance spectra appear as sharp minima in the second derivative.<br><br>
+
+        <b>Gaussian Deconvolution</b><br>
+        Complex overlapping bands are modeled as a linear combination of Gaussian functions:
+        <br><i>f(x) = a · exp(-(x - x₀)² / 2σ²)</i><br>
+        where <i>a</i> is the amplitude, <i>x₀</i> is the peak center, and <i>σ</i> is the standard deviation. A non-linear least squares solver optimizes these parameters to reconstruct the underlying bands.
+
+        <br><br><h4 style="font-family:'Playfair Display',serif; color:#c9a84c; margin-bottom:0.2rem;">3. Multivariate Analysis & Identification</h4>
+        <b>Principal Component Analysis (PCA)</b><br>
+        PCA applies an orthogonal transformation to convert correlated spectral variables into a set of linearly uncorrelated principal components. It solves the eigenvalue problem for the data's covariance matrix to maximize variance capture in lower dimensions.<br><br>
+
+        <b>Library Matching (Cosine Similarity)</b><br>
+        Spectral matching is quantified by treating spectra as n-dimensional vectors and measuring the cosine of the angle between the unknown spectrum vector (A) and the reference vector (B):
+        <br><i>Similarity = (A · B) / (||A|| ||B||)</i><br>
+        This normalized dot product provides a robust structural metric that is highly invariant to scalar multiplication, such as changes in sample thickness or concentration.
+        </div>
+        """, unsafe_allow_html=True)
 else:
     # --- Empty State UI ---
     st.markdown("""
