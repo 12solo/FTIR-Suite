@@ -10,17 +10,14 @@ from scipy import sparse
 from scipy.sparse.linalg import spsolve
 from sklearn.decomposition import PCA
 from sklearn.metrics.pairwise import cosine_similarity
-from scipy.signal import savgol_filter, find_peaks
-from scipy.optimize import curve_fit
-from scipy.stats import linregress # <-- Ensure this is here
-from scipy import sparse
+from scipy.stats import linregress 
 import os
 import re
 import io
 import base64
 
 # ==========================================
-# PAGE CONFIG — must be first Streamlit call
+# PAGE CONFIG
 # ==========================================
 st.set_page_config(
     page_title="FTIR Pro Suite | Solomon Scientific",
@@ -30,223 +27,68 @@ st.set_page_config(
 )
 
 # ==========================================
-# GLOBAL CUSTOM CSS — Full Light Theme
+# GLOBAL CUSTOM CSS
 # ==========================================
 st.markdown("""
 <style>
-/* ── Google Fonts ─────────────────────────────── */
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
 
-/* ── CSS Variables ────────────────────────────── */
 :root {
-    /* Brand Colors */
     --navy:       #0b1120;
     --navy-mid:   #111827;
     --navy-light: #1a2540;
     --gold:       #c9a84c;
     --gold-light: #e2c97e;
     --gold-dim:   #9c7a32;
-    
-    /* Light Mode Colors */
     --bg-white:   #ffffff;
     --bg-offwhite:#f8fafc;
-    --text-dark:  #000000; /* Pure Dark Black for normal text */
-    --text-muted: #111111; /* Almost black for secondary text */
+    --text-dark:  #000000; 
+    --text-muted: #111111; 
     --border-light:#e2e8f0;
-    
     --accent:     #3a7bd5;
     --red:        #e05252;
     --green:      #3db87a;
-    
     --font-head:  'Playfair Display', Georgia, serif;
     --font-mono:  'IBM Plex Mono', 'Courier New', monospace;
     --font-body:  'IBM Plex Sans', 'Segoe UI', sans-serif;
 }
 
-/* ── Base & Body ──────────────────────────────── */
-html, body, [class*="css"] {
-    font-family: var(--font-body);
-    color: var(--text-dark);
-}
-.stApp {
-    background: var(--bg-white);
-}
+html, body, [class*="css"] { font-family: var(--font-body); color: var(--text-dark); }
+.stApp { background: var(--bg-white); }
 .stApp::before { display: none; }
 
-/* ── Sidebar (Pure White & User Friendly) ─────── */
-[data-testid="stSidebar"] {
-    background: #ffffff !important;
-    border-right: 1px solid var(--border-light);
-}
-
-/* Fixed material icon bug and force pure black text */
-[data-testid="stSidebar"] .stMarkdown,
-[data-testid="stSidebar"] label,
-[data-testid="stSidebar"] p {
-    color: #000000 !important;
-    font-family: var(--font-body);
-}
-.material-symbols-rounded,
-[data-testid="stIconMaterial"] {
-    font-family: "Material Symbols Rounded" !important;
-}
-
-[data-testid="stSidebar"] h1,
-[data-testid="stSidebar"] h2,
-[data-testid="stSidebar"] h3 {
-    color: var(--gold-dim) !important;
-    font-weight: 700;
-    font-size: 0.75rem;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-}
+[data-testid="stSidebar"] { background: #ffffff !important; border-right: 1px solid var(--border-light); }
+[data-testid="stSidebar"] .stMarkdown, [data-testid="stSidebar"] label, [data-testid="stSidebar"] p { color: #000000 !important; font-family: var(--font-body); }
+.material-symbols-rounded, [data-testid="stIconMaterial"] { font-family: "Material Symbols Rounded" !important; }
+[data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 { color: var(--gold-dim) !important; font-weight: 700; font-size: 0.75rem; letter-spacing: 0.15em; text-transform: uppercase; }
 [data-testid="stSidebar"] hr { border-color: var(--border-light); margin: 1rem 0; }
+[data-testid="stSidebar"] input[type="text"], [data-testid="stSidebar"] input[type="number"], [data-testid="stSidebar"] textarea, [data-testid="stSidebar"] select { background: var(--bg-white) !important; border: 1px solid var(--border-light) !important; border-radius: 4px !important; color: #000000 !important; font-family: var(--font-mono) !important; font-size: 0.82rem !important; }
+[data-testid="stFileUploadDropzone"] { background-color: var(--bg-white) !important; border: 2px dashed #cbd5e1 !important; border-radius: 6px !important; padding: 1rem !important; }
+[data-testid="stFileUploadDropzone"]:hover { border-color: var(--gold) !important; background-color: var(--bg-offwhite) !important; }
 
-/* Sidebar Inputs */
-[data-testid="stSidebar"] input[type="text"],
-[data-testid="stSidebar"] input[type="number"],
-[data-testid="stSidebar"] textarea,
-[data-testid="stSidebar"] select {
-    background: var(--bg-white) !important;
-    border: 1px solid var(--border-light) !important;
-    border-radius: 4px !important;
-    color: #000000 !important;
-    font-family: var(--font-mono) !important;
-    font-size: 0.82rem !important;
-}
+.stSelectbox > div > div, .stTextInput > div > div > input, .stNumberInput > div > div > input { background: var(--bg-white) !important; border: 1px solid var(--border-light) !important; border-radius: 4px !important; color: #000000 !important; font-family: var(--font-mono) !important; font-size: 0.82rem !important; }
+.stSelectbox > div > div:hover, .stTextInput > div > div > input:focus { border-color: var(--gold) !important; box-shadow: 0 0 0 1px var(--gold-dim) !important; }
 
-/* File Uploader Dropzone */
-[data-testid="stFileUploadDropzone"] {
-    background-color: var(--bg-white) !important;
-    border: 2px dashed #cbd5e1 !important;
-    border-radius: 6px !important;
-    padding: 1rem !important;
-}
-[data-testid="stFileUploadDropzone"]:hover {
-    border-color: var(--gold) !important;
-    background-color: var(--bg-offwhite) !important;
-}
+.stButton > button { background: linear-gradient(135deg, var(--gold-dim), var(--gold)) !important; color: var(--navy) !important; border: none !important; border-radius: 3px !important; font-family: var(--font-body) !important; font-weight: 600 !important; font-size: 0.78rem !important; letter-spacing: 0.08em !important; text-transform: uppercase !important; padding: 0.45rem 1rem !important; transition: all 0.2s ease !important; }
+.stButton > button:hover { background: linear-gradient(135deg, var(--gold), var(--gold-light)) !important; box-shadow: 0 4px 15px rgba(201,168,76,0.3) !important; transform: translateY(-1px) !important; }
+.stButton > button[kind="primary"] { background: linear-gradient(135deg, #8b1a1a, var(--red)) !important; color: white !important; }
 
-/* ── Main Area Inputs ─────────────────────────── */
-.stSelectbox > div > div,
-.stTextInput > div > div > input,
-.stNumberInput > div > div > input {
-    background: var(--bg-white) !important;
-    border: 1px solid var(--border-light) !important;
-    border-radius: 4px !important;
-    color: #000000 !important;
-    font-family: var(--font-mono) !important;
-    font-size: 0.82rem !important;
-}
-.stSelectbox > div > div:hover,
-.stTextInput > div > div > input:focus {
-    border-color: var(--gold) !important;
-    box-shadow: 0 0 0 1px var(--gold-dim) !important;
-}
+[data-testid="stDownloadButton"] > button { background: var(--bg-offwhite) !important; color: var(--navy) !important; border: 1px solid var(--border-light) !important; border-radius: 3px !important; font-weight: 600 !important; }
+[data-testid="stDownloadButton"] > button:hover { background: #ffffff !important; border-color: var(--gold) !important; box-shadow: 0 4px 12px rgba(0,0,0,0.05) !important; }
 
-/* ── Buttons ──────────────────────────────────── */
-.stButton > button {
-    background: linear-gradient(135deg, var(--gold-dim), var(--gold)) !important;
-    color: var(--navy) !important;
-    border: none !important;
-    border-radius: 3px !important;
-    font-family: var(--font-body) !important;
-    font-weight: 600 !important;
-    font-size: 0.78rem !important;
-    letter-spacing: 0.08em !important;
-    text-transform: uppercase !important;
-    padding: 0.45rem 1rem !important;
-    transition: all 0.2s ease !important;
-}
-.stButton > button:hover {
-    background: linear-gradient(135deg, var(--gold), var(--gold-light)) !important;
-    box-shadow: 0 4px 15px rgba(201,168,76,0.3) !important;
-    transform: translateY(-1px) !important;
-}
-.stButton > button[kind="primary"] {
-    background: linear-gradient(135deg, #8b1a1a, var(--red)) !important;
-    color: white !important;
-}
+[data-testid="stTabs"] [role="tablist"] { background: var(--bg-offwhite); border-bottom: 1px solid var(--border-light); gap: 0; padding: 0; }
+[data-testid="stTabs"] [role="tab"] { color: #000000 !important; font-family: var(--font-body) !important; font-size: 0.78rem !important; font-weight: 600 !important; letter-spacing: 0.06em !important; text-transform: uppercase !important; padding: 0.7rem 1.2rem !important; border-bottom: 2px solid transparent !important; }
+[data-testid="stTabs"] [role="tab"]:hover { color: var(--navy) !important; background: rgba(0,0,0,0.02) !important; }
+[data-testid="stTabs"] [role="tab"][aria-selected="true"] { color: #000000 !important; border-bottom-color: var(--gold) !important; background: var(--bg-white) !important; }
 
-/* Download buttons */
-[data-testid="stDownloadButton"] > button {
-    background: var(--bg-offwhite) !important;
-    color: var(--navy) !important;
-    border: 1px solid var(--border-light) !important;
-    border-radius: 3px !important;
-    font-weight: 600 !important;
-}
-[data-testid="stDownloadButton"] > button:hover {
-    background: #ffffff !important;
-    border-color: var(--gold) !important;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.05) !important;
-}
-
-/* ── Tabs ─────────────────────────────────────── */
-[data-testid="stTabs"] [role="tablist"] {
-    background: var(--bg-offwhite);
-    border-bottom: 1px solid var(--border-light);
-    gap: 0; padding: 0;
-}
-[data-testid="stTabs"] [role="tab"] {
-    color: #000000 !important;
-    font-family: var(--font-body) !important;
-    font-size: 0.78rem !important;
-    font-weight: 600 !important;
-    letter-spacing: 0.06em !important;
-    text-transform: uppercase !important;
-    padding: 0.7rem 1.2rem !important;
-    border-bottom: 2px solid transparent !important;
-}
-[data-testid="stTabs"] [role="tab"]:hover {
-    color: var(--navy) !important;
-    background: rgba(0,0,0,0.02) !important;
-}
-[data-testid="stTabs"] [role="tab"][aria-selected="true"] {
-    color: #000000 !important;
-    border-bottom-color: var(--gold) !important;
-    background: var(--bg-white) !important;
-}
-
-/* ── DataFrames ───────────────────────────────── */
-[data-testid="stDataFrame"] {
-    border: 1px solid var(--border-light) !important;
-    border-radius: 6px !important;
-    background: var(--bg-white) !important;
-}
-[data-testid="stDataFrame"] th {
-    background: var(--bg-offwhite) !important;
-    color: #000000 !important;
-    border-bottom: 1px solid var(--border-light) !important;
-}
-[data-testid="stDataFrame"] td {
-    color: #000000 !important;
-}
-
-/* ── Expanders ────────────────────────────────── */
-[data-testid="stExpander"] {
-    border: 1px solid var(--border-light) !important;
-    border-radius: 4px !important;
-    background: var(--bg-white) !important;
-}
-[data-testid="stExpander"] summary {
-    color: #000000 !important;
-    font-weight: 700 !important;
-}
-
-/* ── Text Area & Selectors ────────────────────── */
-.stTextArea textarea {
-    background: var(--bg-white) !important;
-    border: 1px solid var(--border-light) !important;
-    color: #000000 !important;
-}
-[data-baseweb="tag"] {
-    background: var(--bg-offwhite) !important;
-    border: 1px solid var(--border-light) !important;
-}
+[data-testid="stDataFrame"] { border: 1px solid var(--border-light) !important; border-radius: 6px !important; background: var(--bg-white) !important; }
+[data-testid="stDataFrame"] th { background: var(--bg-offwhite) !important; color: #000000 !important; border-bottom: 1px solid var(--border-light) !important; }
+[data-testid="stDataFrame"] td { color: #000000 !important; }
+[data-testid="stExpander"] { border: 1px solid var(--border-light) !important; border-radius: 4px !important; background: var(--bg-white) !important; }
+[data-testid="stExpander"] summary { color: #000000 !important; font-weight: 700 !important; }
+.stTextArea textarea { background: var(--bg-white) !important; border: 1px solid var(--border-light) !important; color: #000000 !important; }
+[data-baseweb="tag"] { background: var(--bg-offwhite) !important; border: 1px solid var(--border-light) !important; }
 [data-baseweb="tag"] span { color: #000000 !important; }
-
-/* ── Alerts ───────────────────────────────────── */
 [data-testid="stAlert"] { color: #000000 !important; }
 </style>
 """, unsafe_allow_html=True)
@@ -448,7 +290,7 @@ PAPER_BG   = "#ffffff"
 BLACK      = "#000000"
 GOLD       = "#c9a84c"
 WHITE      = "#ffffff"
-WHITE_TXT  = "#000000" # Set text to pure black
+WHITE_TXT  = "#000000"
 
 FTIR_STYLE = dict(
     mirror=True, 
@@ -456,7 +298,7 @@ FTIR_STYLE = dict(
     showline=True,
     linecolor=BLACK, 
     linewidth=2,
-    showgrid=False,   # Strict NO GRIDLINES
+    showgrid=False,
     zeroline=False,
     title_font=dict(family="Arial", size=18, color=BLACK),
     tickfont=dict(family="Arial", size=14, color=BLACK),
@@ -466,7 +308,6 @@ FTIR_STYLE = dict(
 )
 
 JOURNAL_CONFIG = {
-    # High resolution export scale (approx 500-600 DPI)
     'toImageButtonOptions': {'format': 'png', 'filename': 'FTIR_Journal_Plot', 'scale': 5},
     'displayModeBar': True,
     'displaylogo': False,
@@ -479,65 +320,124 @@ PALETTE = [
     "#7f7f7f", "#bcbd22", "#17becf"
 ]
 
+# ==========================================
+# REGION-BASED POLYMER DATABASE (Robust to Red/Blue Shifts)
+# FORMAT: { "High_Wavenumber-Low_Wavenumber": "Functional Group Name" }
+# ==========================================
 POLYMER_DB = {
     "TPV (PP/EPDM)": {
-        2950: "CH3 asym (PP)", 2918: "CH2 asym (Backbone)", 2849: "CH2 sym (Backbone)",
-        1455: "CH2 bend", 1376: "CH3 sym (PP)", 1167: "C-C/CH wag (PP cryst)",
-        997: "CH3 rock (Isotactic)", 973: "CH3 rock (Helical)", 841: "CH2 rock (PP cryst)",
-        720: "CH2 rock (EPDM)", 1640: "C=C (EPDM unsat)", 500: "C-C skeletal bend"
+        "2970-2930": "CH3 asym", "2940-2900": "CH2 asym", "2870-2830": "CH2 sym", "1660-1620": "C=C",
+        "1475-1435": "CH2 bend", "1390-1360": "CH3 sym", "1190-1140": "C-C wag",
+        "1010-980": "CH3 rock", "985-960": "CH3 rock", "855-830": "CH2 rock", "735-705": "CH2 rock", "520-480": "Skeletal bend"
     },
     "Peroxide Cured EPDM": {
-        2918: "CH2 asym", 2849: "CH2 sym", 1460: "CH2 bend", 1375: "CH3 bend",
-        720: "CH2 rock", 1100: "C-O-C (Ether cross)", 1060: "C-O str (Oxid)",
-        1735: "C=O (Ketone/Ald)", 1715: "C=O (Acid/Ester)", 1640: "C=C", 3400: "O-H (Oxid)",
-        550: "C-C skeletal bend"
+        "3600-3200": "O-H str", "2940-2900": "CH2 asym", "2870-2830": "CH2 sym", "1750-1725": "C=O (Ketone)",
+        "1725-1700": "C=O (Acid)", "1660-1620": "C=C", "1480-1440": "CH2 bend", "1390-1360": "CH3 bend",
+        "1130-1080": "C-O-C cross", "1080-1040": "C-O str", "735-705": "CH2 rock", "570-530": "Skeletal bend"
     },
-    "PLA": {1750: "C=O (Ester)", 1180: "C-O-C", 1080: "C-O", 870: "C-C str", 755: "C=O bend"},
-    "PBAT": {1715: "C=O (Arom.)", 1270: "C-O", 720: "CH2-bend", 875: "C-H out-of-plane"},
-    "PBS": {1710: "C=O", 1150: "C-O-C", 805: "C-H out-of-plane"},
-    "PHA / PHB": {1720: "C=O", 1280: "C-O-C", 1055: "C-O", 980: "C-CH3 str", 825: "C-H out-of-plane"},
-    "PET": {1715: "C=O (Ester)", 1240: "C-O", 1100: "Arom. C-H", 725: "Ring-def.", 870: "Arom. C-H wag"},
-    "PC (Polycarbonate)": {1775: "C=O", 1500: "Arom. C=C", 1220: "C-O-C", 830: "Arom. C-H out-of-plane", 555: "Ring def."},
-    "PE (HDPE/LDPE)": {2920: "CH2 asym-str", 2850: "CH2 sym-str", 1470: "CH2-bend", 720: "CH2-rock", 550: "C-C skeletal"},
-    "PP": {2950: "CH3-str", 1455: "CH2-bend", 1376: "CH3-bend", 973: "Isotactic", 841: "CH2-rock", 809: "C-C str", 460: "Skeletal"},
-    "PS (Polystyrene)": {3026: "Arom. C-H", 2924: "CH2", 1601: "Arom. C=C", 698: "Ring bend", 750: "C-H out-of-plane", 540: "Ring def."},
-    "PVC": {2970: "CH2-str", 1425: "CH2-bend", 1250: "CH-bend", 690: "C-Cl str", 615: "C-Cl str", 400: "C-C-C bend"},
-    "PMMA (Acrylic)": {1725: "C=O", 1435: "CH3-bend", 1145: "C-O-C", 988: "C-H bend", 840: "CH2 rock", 750: "C-O out-of-plane"},
-    "PA6 / PA66 (Nylon)": {3300: "N-H str", 1640: "Amide I (C=O)", 1540: "Amide II", 690: "Amide V", 580: "Amide VI"},
-    "POM (Acetal)": {2920: "CH2-str", 1090: "C-O-C asym", 900: "C-O-C sym", 630: "CH2 rock"},
-    "PTFE (Teflon)": {1200: "CF2 asym", 1150: "CF2 sym", 640: "CF2 wag", 500: "CF2 twist"},
-    "ABS": {2237: "C≡N (Nitrile)", 1601: "Arom. C=C", 966: "C=C trans", 760: "Arom. C-H", 700: "Ring bend"},
-    "NR (Natural Rubber)": {2960: "CH3 str", 1660: "C=C str", 1450: "CH2 bend", 835: "=C-H out", 570: "C-C-C bend"},
-    "SBR (Styrene-Butadiene)": {2920: "CH2 str", 1600: "Arom. C=C", 965: "C=C trans", 699: "Ring bend", 760: "Arom. C-H out"},
-    "NBR (Nitrile Rubber)": {2920: "CH2 str", 2237: "C≡N str", 1440: "CH2 bend", 966: "C=C trans", 830: "C-H out"},
-    "EPDM": {2920: "CH2 str", 2850: "CH2 str", 1460: "CH2 bend", 1375: "CH3 bend", 720: "CH2 rock", 550: "C-C skeletal"},
-    "Silicone (PDMS)": {2960: "CH3 str", 1260: "Si-CH3", 1090: "Si-O-Si", 800: "Si-C", 700: "Si-C str"},
-    "CR (Neoprene)": {1660: "C=C str", 1440: "CH2 bend", 1120: "C-C str", 825: "C-Cl str", 600: "C-Cl str"},
-    "FKM (Viton)": {1200: "C-F str", 1120: "CF2 str", 880: "C-F bend", 600: "CF2 wag", 500: "CF2 rock"},
-    "PU (Polyurethane)": {3330: "N-H str", 1730: "C=O (Free)", 1700: "C=O (H-bond)", 1530: "Amide II", 815: "Arom. C-H out", 770: "Amide IV"},
-    "General / Unknown": {3300: "O-H / N-H", 2920: "C-H", 2250: "C≡N", 1720: "C=O", 1640: "C=C / H2O", 1050: "C-O", 800: "C-H arom./alkene", 500: "Skeletal/Metal-O"},
+    "PLA": {
+        "1770-1730": "C=O", "1200-1160": "C-O-C", "1100-1060": "C-O", 
+        "890-850": "C-C str", "770-740": "C=O bend", "720-680": "Skeletal"
+    },
+    "PBAT": {
+        "1735-1695": "C=O", "1290-1250": "C-O", 
+        "895-855": "C-H out-plane", "740-700": "CH2 rock"
+    },
+    "PBS": {
+        "1730-1690": "C=O", "1170-1130": "C-O-C", 
+        "825-785": "C-H out-plane", "580-540": "Skeletal"
+    },
+    "PHA / PHB": {
+        "1740-1700": "C=O", "1300-1260": "C-O-C", "1075-1035": "C-O", 
+        "1000-960": "C-CH3 str", "845-805": "C-H out-plane", "530-490": "C=O out-plane"
+    },
+    "PET": {
+        "1735-1695": "C=O", "1260-1220": "C-O", "1120-1080": "Arom. C-H", 
+        "990-950": "O-CH2", "890-850": "Arom. C-H wag", "745-705": "Ring def.", "525-485": "Ring bend"
+    },
+    "PC (Polycarbonate)": {
+        "1795-1755": "C=O", "1520-1480": "Arom. C=C", "1240-1200": "C-O-C", 
+        "850-810": "Arom. C-H out-plane", "575-535": "Ring def."
+    },
+    "PE (HDPE/LDPE)": {
+        "2940-2900": "CH2 asym", "2870-2830": "CH2 sym", "1490-1450": "CH2 bend", 
+        "740-725": "CH2 rock", "725-710": "CH2 rock", "570-530": "Skeletal"
+    },
+    "PP": {
+        "2970-2930": "CH3 str", "1475-1435": "CH2 bend", "1395-1355": "CH3 bend", 
+        "1015-985": "CH3 rock", "985-960": "Isotactic", "860-820": "CH2 rock", "820-790": "C-C str", "480-440": "Skeletal"
+    },
+    "PS (Polystyrene)": {
+        "3050-3000": "Arom. C-H", "2950-2900": "CH2", "1620-1580": "Arom. C=C", 
+        "920-890": "Ring bend", "770-730": "C-H out-plane", "710-680": "Ring bend", "560-520": "Ring def."
+    },
+    "PVC": {
+        "2990-2950": "CH2 str", "1445-1405": "CH2 bend", "1270-1230": "CH bend", 
+        "980-940": "CH2 wag", "850-810": "C-Cl", "710-670": "C-Cl str", "635-595": "C-Cl str", "420-380": "C-C-C bend"
+    },
+    "PMMA (Acrylic)": {
+        "1745-1705": "C=O", "1455-1415": "CH3 bend", "1165-1125": "C-O-C", 
+        "1005-965": "C-H bend", "860-820": "CH2 rock", "770-730": "C-O out-plane"
+    },
+    "PA6 / PA66 (Nylon)": {
+        "3350-3250": "N-H str", "1660-1620": "Amide I", "1560-1520": "Amide II", 
+        "950-910": "C-C str", "710-670": "Amide V", "600-560": "Amide VI"
+    },
+    "POM (Acetal)": {
+        "2940-2900": "CH2 str", "1110-1070": "C-O-C asym", 
+        "920-880": "C-O-C sym", "650-610": "CH2 rock", "470-430": "Skeletal"
+    },
+    "PTFE (Teflon)": {
+        "1230-1180": "CF2 asym", "1170-1130": "CF2 sym", 
+        "660-620": "CF2 wag", "570-530": "CF2 def", "520-480": "CF2 twist"
+    },
+    "ABS": {
+        "2250-2220": "C≡N", "1620-1580": "Arom. C=C", 
+        "985-945": "C=C trans", "780-740": "Arom. C-H", "720-680": "Ring bend"
+    },
+    "NR (Natural Rubber)": {
+        "2980-2940": "CH3 str", "1680-1640": "C=C str", "1470-1430": "CH2 bend", 
+        "855-815": "=C-H out-plane", "590-550": "C-C-C bend"
+    },
+    "SBR (Styrene-Butadiene)": {
+        "2940-2900": "CH2 str", "1620-1580": "Arom. C=C", 
+        "985-945": "C=C trans", "780-740": "Arom. C-H out", "720-680": "Ring bend"
+    },
+    "NBR (Nitrile Rubber)": {
+        "2940-2900": "CH2 str", "2250-2220": "C≡N", "1460-1420": "CH2 bend", 
+        "985-945": "C=C trans", "850-810": "C-H out-plane"
+    },
+    "EPDM": {
+        "2940-2900": "CH2 str", "2870-2830": "CH2 str", "1480-1440": "CH2 bend", "1395-1355": "CH3 bend", 
+        "740-700": "CH2 rock", "570-530": "Skeletal"
+    },
+    "Silicone (PDMS)": {
+        "2980-2940": "CH3 str", "1280-1240": "Si-CH3", "1110-1070": "Si-O-Si", 
+        "820-780": "Si-C str", "720-680": "Si-C str", "510-470": "Si-O-Si bend"
+    },
+    "CR (Neoprene)": {
+        "1680-1640": "C=C str", "1460-1420": "CH2 bend", "1140-1100": "C-C str", 
+        "845-805": "C-Cl str", "620-580": "C-Cl str"
+    },
+    "FKM (Viton)": {
+        "1220-1180": "C-F str", "1140-1100": "CF2 str", 
+        "900-860": "C-F bend", "620-580": "CF2 wag", "520-480": "CF2 rock"
+    },
+    "PU (Polyurethane)": {
+        "3360-3300": "N-H str", "1750-1710": "C=O (Free)", "1710-1680": "C=O (H-bond)", "1550-1510": "Amide II", 
+        "835-795": "Arom. C-H out", "790-750": "Amide IV"
+    },
+    "General / Unknown": {
+        "3600-3200": "O-H/N-H", "3000-2800": "C-H", "2300-2200": "C≡N", "1750-1680": "C=O", "1680-1600": "C=C/H2O", "1300-1000": "C-O", 
+        "900-700": "C-H out-plane", "600-400": "Skeletal/Metal-O"
+    },
     "Biosynthesized CuO NPs": {
-    3400: "O-H str (Phytochem.)",
-    2920: "C-H asym str",
-    2850: "C-H sym str",
-    2350: "CO2 adsorp.",
-    1620: "C=O/C=C str",
-    1540: "N-H bend (Amide II)",
-    1450: "CH2/O-H bend",
-    1384: "C-N str / NO3",
-    1320: "C-N str / O-H bend",
-    1240: "C-O str (Ester)",
-    1160: "C-O-C str",
-    1100: "C-O str (Sec. Alc)",
-    1050: "C-O str (Alc/Ether)",
-    980: "=C-H bend",
-    870: "Arom. C-H bend",
-    780: "Arom. out-plane",
-    650: "Cu-O-H vib.",
-    530: "Cu-O str",
-    480: "Cu-O lattice str",
-    430: "Cu-O lattice vib."
-}
+        "3600-3200": "O-H str (Phytochem.)", "2950-2880": "C-H asym str", "2880-2820": "C-H sym str", "2400-2300": "CO2 adsorp.",
+        "1650-1580": "C=O/C=C str", "1560-1510": "N-H bend (Amide II)", "1480-1420": "CH2/O-H bend", "1400-1350": "C-N str / NO3",
+        "1340-1290": "C-N str / O-H bend", "1280-1200": "C-O str (Ester)", "1190-1130": "C-O-C str", "1120-1080": "C-O str (Sec. Alc)",
+        "1070-1000": "C-O str (Alc/Ether)", "995-960": "=C-H bend", "890-850": "Arom. C-H bend", "800-750": "Arom. out-plane", 
+        "680-600": "Cu-O-H vib.", "560-500": "Cu-O str", "490-450": "Cu-O lattice str", "450-400": "Cu-O lattice vib."
+    }
 }
 
 # ==========================================
@@ -571,7 +471,6 @@ with st.sidebar:
     stack_offset = st.slider("Vertical Offset Cushion", 0.0, 1.0, 0.2, step=0.05)
     line_w = st.slider("Line Weight", 1.0, 4.0, 2.0)
     
-    # NEW TOGGLE ADDED HERE
     show_raw_spectra = st.checkbox("Show Raw Data (No Baseline Correction)", value=False, 
                                    help="Plot the raw uploaded data without ALS baseline or smoothing applied.")
     
@@ -726,27 +625,20 @@ if not master.empty:
             df = spectra[name]
             wavenumbers = df['Wavenumber'].values
             
-            # --- NEW LOGIC: Check the sidebar toggle ---
             if show_raw_spectra:
-                # Use raw data, but scale it slightly so it doesn't break the stacking offset
                 raw_vals = df['Raw_Intensity'].values
                 min_val, max_val = raw_vals.min(), raw_vals.max()
-                # Normalize just for display purposes so the offset slider still works
                 if max_val > min_val:
                     plot_y = (raw_vals - min_val) / (max_val - min_val)
                 else:
                     plot_y = raw_vals
                 
-                # Apply transmittance math if needed
                 if is_transmittance:
                     plot_y = 100 * (10 ** -plot_y)
             else:
-                # Original processed logic
                 plot_y = 100 * (10 ** -df['Absorbance_Norm'].values) if is_transmittance else df['Absorbance_Norm'].values
             
             color = PALETTE[i % len(PALETTE)]
-
-            # Note: We append '(Raw)' to the name if the toggle is active
             trace_name = f"{name} (Raw)" if show_raw_spectra else name
             
             fig.add_trace(go.Scatter(
@@ -762,7 +654,6 @@ if not master.empty:
             nudge = (plot_y.max() - plot_y.min()) * 0.08
             label_y_pos = current_baseline + local_y + (nudge if not is_transmittance else -nudge)
 
-            # Trace Name Label (Journal Style)
             fig.add_annotation(
                 x=anchor_x, y=label_y_pos, 
                 text=trace_name, showarrow=False,
@@ -770,12 +661,31 @@ if not master.empty:
                 font=dict(family="Arial", size=14, color=color)
             )
 
+            # Robust Regional Peak Finding
             valid_peaks = []
             for poly in selected_ref:
-                for wn, label in POLYMER_DB[poly].items():
-                    if wavenumbers.min() <= wn <= wavenumbers.max():
-                        idx = np.argmin(np.abs(wavenumbers - wn))
-                        valid_peaks.append({"wn": wn, "py": plot_y[idx] + current_baseline, "label": label})
+                for region_str, label in POLYMER_DB[poly].items():
+                    try:
+                        bounds = [int(x) for x in region_str.split('-')]
+                        high_wn, low_wn = max(bounds), min(bounds)
+                        
+                        mask = (wavenumbers >= low_wn) & (wavenumbers <= high_wn)
+                        if np.any(mask):
+                            local_wns = wavenumbers[mask]
+                            local_ys = plot_y[mask] 
+                            
+                            # Find actual peak within the functional group window (handles shifts)
+                            if is_transmittance:
+                                idx_local = np.argmin(local_ys)
+                            else:
+                                idx_local = np.argmax(local_ys)
+                                
+                            peak_wn = local_wns[idx_local]
+                            peak_y = local_ys[idx_local] + current_baseline
+                            
+                            valid_peaks.append({"wn": peak_wn, "py": peak_y, "label": label})
+                    except Exception:
+                        pass
             
             valid_peaks = sorted(valid_peaks, key=lambda d: d["wn"])
 
@@ -783,14 +693,12 @@ if not master.empty:
                 stagger_dist = 25 if p_idx % 2 != 0 else 0
                 current_ay = (arrow_direction + stagger_dist) if is_transmittance else (arrow_direction - stagger_dist)
 
-                # Peak Annotation (Journal Style) - NO BORDER
                 fig.add_annotation(
                     x=p_data["wn"], y=p_data["py"], 
                     text=f"{p_data['label']}", 
                     showarrow=True, 
                     arrowhead=1, arrowsize=1, arrowwidth=1.5, arrowcolor=BLACK,
-                    ay=current_ay, ax=0, 
-                    standoff=5, 
+                    ay=current_ay, ax=0, standoff=5, 
                     font=dict(family="Arial", size=12, color=BLACK),
                     bgcolor=PAPER_BG, borderpad=3  
                 )
@@ -800,8 +708,6 @@ if not master.empty:
             current_baseline += spectrum_height + scaled_offset + text_buffer
 
         dynamic_plot_height = max(600, 200 + (len(master['File'].unique()) * 120))
-        
-        # Update title based on toggle
         y_axis_title = f"<b>{display_mode} (Stacked Raw Data)</b>" if show_raw_spectra else f"<b>{display_mode} (Stacked)</b>"
         
         fig.update_layout(
@@ -884,17 +790,32 @@ if not master.empty:
             df = spectra[name]
             wavenumbers = df['Wavenumber'].values
             output_y = 100 * (10 ** -df['Absorbance_Norm'].values) if is_transmittance else df['Absorbance_Norm'].values
+            
             for poly in selected_ref:
-                for wn, label in POLYMER_DB[poly].items():
-                    if wavenumbers.min() <= wn <= wavenumbers.max():
-                        idx = np.argmin(np.abs(wavenumbers - wn))
-                        summary_data.append({
-                            "Sample Name": name, "Material Lib.": poly,
-                            "Target Wavenumber (cm⁻¹)": wn,
-                            "Actual Peak Wavenumber (cm⁻¹)": round(wavenumbers[idx], 1),
-                            "Assignment": label,
-                            f"Intensity ({display_mode})": round(output_y[idx], 4)
-                        })
+                for region_str, label in POLYMER_DB[poly].items():
+                    try:
+                        bounds = [int(x) for x in region_str.split('-')]
+                        high_wn, low_wn = max(bounds), min(bounds)
+                        
+                        mask = (wavenumbers >= low_wn) & (wavenumbers <= high_wn)
+                        if np.any(mask):
+                            local_wns = wavenumbers[mask]
+                            local_ys = output_y[mask]
+                            
+                            if is_transmittance:
+                                idx_local = np.argmin(local_ys)
+                            else:
+                                idx_local = np.argmax(local_ys)
+                                
+                            summary_data.append({
+                                "Sample Name": name, "Material Lib.": poly,
+                                "Target Region (cm⁻¹)": region_str,
+                                "Detected Peak (cm⁻¹)": round(local_wns[idx_local], 1),
+                                "Assignment": label,
+                                f"Intensity ({display_mode})": round(local_ys[idx_local], 4)
+                            })
+                    except Exception:
+                        pass
         
         if summary_data:
             summary_df = pd.DataFrame(summary_data)
@@ -1077,7 +998,8 @@ if not master.empty:
             f"FTIR_Matrix_{display_mode[:3]}.csv"
         )
         st.dataframe(matrix_df.head(15), use_container_width=True)
-# ---------------------------
+
+    # ---------------------------
     # TAB 8: METHODOLOGIES
     # ---------------------------
     with tab8:
@@ -1123,7 +1045,7 @@ if not master.empty:
         This normalized dot product provides a robust structural metric that is highly invariant to scalar multiplication, such as changes in sample thickness or concentration.
         </div>
         """, unsafe_allow_html=True)
-# ---------------------------
+
     # ---------------------------
     # TAB 9: EPDM KOH AGING TRACKER (BASIC)
     # ---------------------------
@@ -1145,7 +1067,6 @@ if not master.empty:
                 st.markdown("<h4 style='font-family:Arial; font-size:1.1rem; font-weight:600;'>1. Experimental Metadata</h4>", unsafe_allow_html=True)
                 st.markdown("<p style='font-size:0.9rem; color:#475569;'>Assign the precise aging conditions to your uploaded files.</p>", unsafe_allow_html=True)
                 
-                # Initialize metadata for the basic tab safely
                 if 'epdm_metadata_basic' not in st.session_state or len(st.session_state['epdm_metadata_basic']) != len(master) or 'Replicate_ID' in st.session_state['epdm_metadata_basic'].columns:
                     meta_df_basic = master[['File']].copy()
                     meta_df_basic['Aging_Days'] = 0.0
@@ -1153,7 +1074,6 @@ if not master.empty:
                     meta_df_basic['KOH_Molar'] = 1.0
                     st.session_state['epdm_metadata_basic'] = meta_df_basic
                 
-                # Editable dataframe for exact parameters
                 edited_meta_basic = st.data_editor(
                     st.session_state['epdm_metadata_basic'],
                     hide_index=True,
@@ -1174,7 +1094,6 @@ if not master.empty:
                 hydr_peak_basic = st.number_input("Water/Hydroxyl Peak (O-H)", value=3400, step=5, key="hydr_basic")
 
             with col_plot_basic:
-                # Calculate Indices
                 kinetics_data_basic = []
                 for idx, row in edited_meta_basic.iterrows():
                     file_name = row['File']
@@ -1183,14 +1102,16 @@ if not master.empty:
                         wavenumbers = df_spec['Wavenumber'].values
                         absorbance = df_spec['Absorbance_Norm'].values
                         
-                        # Find closest indices for the target wavenumbers
-                        idx_ref = np.argmin(np.abs(wavenumbers - ref_peak_basic))
-                        idx_carb = np.argmin(np.abs(wavenumbers - carb_peak_basic))
-                        idx_hydr = np.argmin(np.abs(wavenumbers - hydr_peak_basic))
+                        # Robust regional search for Basic mode (handles shifts gracefully)
+                        def get_max_in_window(target, wns, intensities, window=15):
+                            mask = (wns >= target - window) & (wns <= target + window)
+                            if np.any(mask):
+                                return np.max(intensities[mask])
+                            return intensities[np.argmin(np.abs(wns - target))]
                         
-                        abs_ref = max(absorbance[idx_ref], 0.0001) # Prevent division by zero
-                        abs_carb = absorbance[idx_carb]
-                        abs_hydr = absorbance[idx_hydr]
+                        abs_ref = max(get_max_in_window(ref_peak_basic, wavenumbers, absorbance), 0.0001)
+                        abs_carb = get_max_in_window(carb_peak_basic, wavenumbers, absorbance)
+                        abs_hydr = get_max_in_window(hydr_peak_basic, wavenumbers, absorbance)
                         
                         kinetics_data_basic.append({
                             "File": file_name,
@@ -1206,44 +1127,24 @@ if not master.empty:
                 if not k_df_basic.empty:
                     target_metric_basic = st.radio("Select Degradation Metric to Plot", ["Carbonyl Index", "Hydroxyl Index"], horizontal=True, key="metric_basic")
                     
-                    # Create highly specific, journal-quality scatter plot
                     fig_kinetics_basic = px.scatter(
-                        k_df_basic, 
-                        x="Days", 
-                        y=target_metric_basic, 
-                        color="KOH Concentration", 
-                        symbol="Temperature",
-                        hover_data=["File"],
-                        trendline="ols" if len(k_df_basic) > 3 else None
+                        k_df_basic, x="Days", y=target_metric_basic, color="KOH Concentration", symbol="Temperature",
+                        hover_data=["File"], trendline="ols" if len(k_df_basic) > 3 else None
                     )
-                    
                     fig_kinetics_basic.update_traces(marker=dict(size=12, line=dict(width=1.5, color=BLACK)))
-                    
                     fig_kinetics_basic.update_layout(
                         plot_bgcolor=PLOT_BG, paper_bgcolor=PAPER_BG,
                         title=dict(text=f"<b>EPDM Degradation Kinetics: {target_metric_basic}</b>", font=dict(family="Arial", size=16, color=BLACK)),
                         xaxis=dict(title="<b>Aging Time (Days)</b>", **FTIR_STYLE),
                         yaxis=dict(title=f"<b>{target_metric_basic} (A.U.)</b>", **FTIR_STYLE),
-                        height=500,
-                        margin=dict(l=60, r=40, t=60, b=60),
-                        legend=dict(
-                            bgcolor=WHITE, bordercolor=BLACK, borderwidth=1,
-                            font=dict(family="Arial", size=12, color=BLACK),
-                            title_font=dict(family="Arial", size=13, color=BLACK)
-                        )
+                        height=500, margin=dict(l=60, r=40, t=60, b=60),
+                        legend=dict(bgcolor=WHITE, bordercolor=BLACK, borderwidth=1, font=dict(family="Arial", size=12, color=BLACK), title_font=dict(family="Arial", size=13, color=BLACK))
                     )
                     st.plotly_chart(fig_kinetics_basic, use_container_width=True, config=JOURNAL_CONFIG)
                     
-                    # Export Data
                     st.markdown("<br>", unsafe_allow_html=True)
                     csv_k_basic = k_df_basic.to_csv(index=False).encode('utf-8')
-                    st.download_button(
-                        label="📥 Download Basic Kinetics Data (CSV)",
-                        data=csv_k_basic,
-                        file_name="EPDM_KOH_Kinetics_Basic.csv",
-                        mime="text/csv",
-                        key="dl_basic"
-                    )
+                    st.download_button(label="📥 Download Basic Kinetics Data (CSV)", data=csv_k_basic, file_name="EPDM_KOH_Kinetics_Basic.csv", mime="text/csv", key="dl_basic")
 
     # ---------------------------
     # TAB 10: EPDM KOH AGING TRACKER - ADVANCED RESEARCH VERSION
@@ -1261,11 +1162,7 @@ if not master.empty:
         if len(master) == 0:
             info_box("Upload spectra to begin aging analysis.", "warning")
         else:
-            # ============================================================
-            # SECTION 1: EXPERIMENTAL METADATA & INTEGRATION PARAMETERS
-            # ============================================================
             st.markdown("<h3 style='font-family:Arial; font-size:1.3rem; font-weight:700; margin-top:1rem;'>⚙️ Experimental Configuration</h3>", unsafe_allow_html=True)
-            
             col_meta_adv, col_params_adv = st.columns([1.2, 1], gap="large")
             
             with col_meta_adv:
@@ -1286,9 +1183,7 @@ if not master.empty:
                 
                 edited_meta_adv = st.data_editor(
                     st.session_state['epdm_metadata_adv'],
-                    hide_index=True,
-                    use_container_width=True,
-                    key="data_editor_adv",
+                    hide_index=True, use_container_width=True, key="data_editor_adv",
                     column_config={
                         "File": st.column_config.TextColumn("Spectrum File", disabled=True),
                         "Replicate_ID": st.column_config.SelectboxColumn("Rep.", options=['A', 'B', 'C', 'D', 'E'], required=True),
@@ -1309,7 +1204,6 @@ if not master.empty:
                     ref_peak_adv = st.number_input("Reference (CH₂)", value=1460, step=5, help="Backbone methylene (~1460 cm⁻¹)", key="ref_adv")
                     carb_peak_adv = st.number_input("Carbonyl (C=O)", value=1715, step=5, help="Oxidation product (~1715 cm⁻¹)", key="carb_adv")
                     hydr_peak_adv = st.number_input("Hydroxyl (O-H)", value=3400, step=5, help="Hydroxyl/water (~3400 cm⁻¹)", key="hydr_adv")
-                
                 with col_p2:
                     ester_peak_adv = st.number_input("Ester (C-O-C)", value=1240, step=5, help="Ester/ether (~1240 cm⁻¹)", key="ester_adv")
                     vinyl_peak_adv = st.number_input("Vinyl (C=C)", value=1640, step=5, help="Residual unsaturation (~1640 cm⁻¹)", key="vinyl_adv")
@@ -1317,20 +1211,9 @@ if not master.empty:
                 
                 integration_width_adv = st.slider("Integration Window (±cm⁻¹)", 5, 50, 15, 5, help="Spectral range for peak area integration", key="window_adv")
 
-            # ============================================================
-            # SECTION 2: ADVANCED SPECTRAL ANALYSIS
-            # ============================================================
             st.markdown("<h3 style='font-family:Arial; font-size:1.3rem; font-weight:700; margin-top:2rem;'>📊 Degradation Index Calculation</h3>", unsafe_allow_html=True)
+            analysis_mode_adv = st.radio("Analysis Method:", ["Peak Height (Fast)", "Peak Area Integration (Accurate)", "Deconvoluted Peak Area (Advanced)"], horizontal=True, key="mode_adv")
             
-            analysis_mode_adv = st.radio(
-                "Analysis Method:",
-                ["Peak Height (Fast)", "Peak Area Integration (Accurate)", "Deconvoluted Peak Area (Advanced)"],
-                horizontal=True,
-                help="Peak height: quick screening. Area integration: quantitative. Deconvolution: overlapping bands.",
-                key="mode_adv"
-            )
-            
-            # Calculate comprehensive degradation indices
             kinetics_data_adv = []
             
             for idx, row in edited_meta_adv.iterrows():
@@ -1341,53 +1224,44 @@ if not master.empty:
                     absorbance = df_spec['Absorbance_Norm'].values
                     
                     def get_peak_value_adv(target_wn, method='height'):
-                        """Extract peak value using specified method"""
                         idx_center = np.argmin(np.abs(wavenumbers - target_wn))
                         
                         if method == 'height':
+                            # Scan region for the actual peak maximum
+                            mask = np.abs(wavenumbers - target_wn) <= integration_width_adv
+                            if np.any(mask):
+                                return max(np.max(absorbance[mask]), 0.0001)
                             return max(absorbance[idx_center], 0.0001)
                         
                         elif method == 'area':
-                            # Integrate over window
                             mask = np.abs(wavenumbers - target_wn) <= integration_width_adv
                             if np.sum(mask) > 2:
                                 wn_region = wavenumbers[mask]
                                 abs_region = absorbance[mask]
-                                # Trapezoidal integration
                                 area = np.trapz(abs_region, wn_region)
                                 return max(abs(area), 0.0001)
                             return max(absorbance[idx_center], 0.0001)
                         
                         elif method == 'deconvolution':
-                            # Simple Gaussian fitting for overlapping peaks
                             mask = np.abs(wavenumbers - target_wn) <= integration_width_adv * 2
                             if np.sum(mask) > 5:
                                 wn_region = wavenumbers[mask]
                                 abs_region = absorbance[mask]
-                                
                                 def gaussian_func(x, amp, center, sigma):
                                     return amp * np.exp(-(x - center)**2 / (2 * sigma**2))
-                                
                                 try:
                                     amp_init = np.max(abs_region)
-                                    popt, _ = curve_fit(gaussian_func, wn_region, abs_region, 
-                                                       p0=[amp_init, target_wn, 10],
-                                                       bounds=([0, target_wn-20, 1], [amp_init*2, target_wn+20, 50]))
+                                    popt, _ = curve_fit(gaussian_func, wn_region, abs_region, p0=[amp_init, target_wn, 10], bounds=([0, target_wn-20, 1], [amp_init*2, target_wn+20, 50]))
                                     fitted_area = popt[0] * popt[2] * np.sqrt(2 * np.pi)
                                     return max(fitted_area, 0.0001)
                                 except:
                                     pass
                             return max(absorbance[idx_center], 0.0001)
                     
-                    # Determine method
-                    if "Peak Height" in analysis_mode_adv:
-                        method_adv = 'height'
-                    elif "Peak Area Integration" in analysis_mode_adv:
-                        method_adv = 'area'
-                    else:
-                        method_adv = 'deconvolution'
+                    if "Peak Height" in analysis_mode_adv: method_adv = 'height'
+                    elif "Peak Area Integration" in analysis_mode_adv: method_adv = 'area'
+                    else: method_adv = 'deconvolution'
                     
-                    # Extract all peak values
                     val_ref_adv = get_peak_value_adv(ref_peak_adv, method_adv)
                     val_carb_adv = get_peak_value_adv(carb_peak_adv, method_adv)
                     val_hydr_adv = get_peak_value_adv(hydr_peak_adv, method_adv)
@@ -1395,21 +1269,13 @@ if not master.empty:
                     val_vinyl_adv = get_peak_value_adv(vinyl_peak_adv, method_adv)
                     val_ch3_adv = get_peak_value_adv(ch3_peak_adv, method_adv)
                     
-                    # Calculate normalized indices
                     kinetics_data_adv.append({
-                        "File": file_name,
-                        "Replicate": row['Replicate_ID'],
-                        "Days": row['Aging_Days'],
-                        "Temp_C": row['Temp_C'],
-                        "KOH_M": row['KOH_Molar'],
-                        "Sample_Type": row['Sample_Type'],
+                        "File": file_name, "Replicate": row['Replicate_ID'], "Days": row['Aging_Days'],
+                        "Temp_C": row['Temp_C'], "KOH_M": row['KOH_Molar'], "Sample_Type": row['Sample_Type'],
                         "Condition": f"{row['Temp_C']}°C, {row['KOH_Molar']}M KOH",
-                        "Carbonyl_Index": val_carb_adv / val_ref_adv,
-                        "Hydroxyl_Index": val_hydr_adv / val_ref_adv,
-                        "Ester_Index": val_ester_adv / val_ref_adv,
-                        "Vinyl_Index": val_vinyl_adv / val_ref_adv,
-                        "Chain_Integrity": val_ch3_adv / val_ref_adv,
-                        "Overall_Degradation": (val_carb_adv + val_hydr_adv) / (2 * val_ref_adv)
+                        "Carbonyl_Index": val_carb_adv / val_ref_adv, "Hydroxyl_Index": val_hydr_adv / val_ref_adv,
+                        "Ester_Index": val_ester_adv / val_ref_adv, "Vinyl_Index": val_vinyl_adv / val_ref_adv,
+                        "Chain_Integrity": val_ch3_adv / val_ref_adv, "Overall_Degradation": (val_carb_adv + val_hydr_adv) / (2 * val_ref_adv)
                     })
             
             k_df_adv = pd.DataFrame(kinetics_data_adv)
@@ -1417,23 +1283,13 @@ if not master.empty:
             if k_df_adv.empty:
                 st.warning("No spectral data available for analysis.")
             else:
-                # ============================================================
-                # SECTION 3: STATISTICAL AGGREGATION
-                # ============================================================
                 st.markdown("<h4 style='font-family:Arial; font-size:1.05rem; font-weight:600; margin-top:1.5rem;'>Statistical Summary</h4>", unsafe_allow_html=True)
-                
                 index_cols_adv = ['Carbonyl_Index', 'Hydroxyl_Index', 'Ester_Index', 'Vinyl_Index', 'Chain_Integrity', 'Overall_Degradation']
                 
                 stats_data_adv = []
                 for (days, temp, koh), group in k_df_adv.groupby(['Days', 'Temp_C', 'KOH_M']):
                     if len(group) > 0:
-                        stats_row = {
-                            'Days': days,
-                            'Temp_C': temp,
-                            'KOH_M': koh,
-                            'Condition': f"{temp}°C, {koh}M KOH",
-                            'N_Replicates': len(group)
-                        }
+                        stats_row = {'Days': days, 'Temp_C': temp, 'KOH_M': koh, 'Condition': f"{temp}°C, {koh}M KOH", 'N_Replicates': len(group)}
                         for col in index_cols_adv:
                             stats_row[f'{col}_Mean'] = group[col].mean()
                             stats_row[f'{col}_Std'] = group[col].std() if len(group) > 1 else 0
@@ -1442,55 +1298,29 @@ if not master.empty:
                 
                 stats_df_adv = pd.DataFrame(stats_data_adv)
                 
-                # ============================================================
-                # SECTION 4: VISUALIZATION OPTIONS & KINETIC MODELING
-                # ============================================================
                 st.markdown("<h3 style='font-family:Arial; font-size:1.3rem; font-weight:700; margin-top:2rem;'>📈 Kinetic Analysis & Visualization</h3>", unsafe_allow_html=True)
                 
                 with st.expander("🔬 Kinetic Model Equations & Theory", expanded=False):
-                    st.markdown("""
-                    **Phenomenological Kinetic Models**
-                    Degradation of EPDM in alkaline environments involves complex overlapping mechanisms (hydrolysis, thermo-oxidation, chain scission). Phenomenological models are fitted to extract the apparent rate constant ($k$) for comparative analysis.
-                    """)
+                    st.markdown("**Phenomenological Kinetic Models**")
                     col_eq1, col_eq2 = st.columns(2)
                     with col_eq1:
-                        st.markdown("**Zero-Order (Diffusion-Limited / Surface Erosion)**")
-                        st.latex(r"I(t) = I_0 + kt")
-                        st.markdown("**First-Order (Auto-oxidation / Bulk Degradation)**")
-                        st.latex(r"I(t) = I_0 \exp(kt)")
+                        st.markdown("**Zero-Order**"); st.latex(r"I(t) = I_0 + kt")
+                        st.markdown("**First-Order**"); st.latex(r"I(t) = I_0 \exp(kt)")
                     with col_eq2:
-                        st.markdown("**Second-Order (Bimolecular / Site Depletion)**")
-                        st.latex(r"\frac{1}{I(t)} = \frac{1}{I_0} - kt")
-                        st.markdown("**Power Law (Multi-Step Complex Pathways)**")
-                        st.latex(r"I(t) = I_0 + kt^n")
-                    st.markdown("*Where $I(t)$ is the degradation index at time $t$, $I_0$ is the initial index, $k$ is the apparent rate constant, and $n$ is the kinetic exponent.*")
+                        st.markdown("**Second-Order**"); st.latex(r"\frac{1}{I(t)} = \frac{1}{I_0} - kt")
+                        st.markdown("**Power Law**"); st.latex(r"I(t) = I_0 + kt^n")
 
                 viz_tabs = st.tabs(["🔍 Degradation Trends", "🌡️ Arrhenius Analysis", "🗺️ Multi-Variable Mapping", "📊 Mechanism Correlation"])
                 
-                # --------------------------------------------------------
-                # TAB 1: DEGRADATION TRENDS
-                # --------------------------------------------------------
                 with viz_tabs[0]:
                     col_v1, col_v2 = st.columns([1, 2.5])
-                    
                     with col_v1:
-                        target_metric_adv = st.selectbox(
-                            "Degradation Index:",
-                            ["Carbonyl_Index", "Hydroxyl_Index", "Ester_Index", "Vinyl_Index", "Chain_Integrity", "Overall_Degradation"],
-                            format_func=lambda x: x.replace('_', ' '),
-                            key="target_metric_adv"
-                        )
-                        
+                        target_metric_adv = st.selectbox("Degradation Index:", ["Carbonyl_Index", "Hydroxyl_Index", "Ester_Index", "Vinyl_Index", "Chain_Integrity", "Overall_Degradation"], format_func=lambda x: x.replace('_', ' '), key="target_metric_adv")
                         show_individual_adv = st.checkbox("Show Individual Replicates", value=True, key="show_ind_adv")
                         show_error_bars_adv = st.checkbox("Show Error Bars (±SE)", value=True, key="show_err_adv")
                         fit_kinetics_adv = st.checkbox("Fit Kinetic Model", value=False, key="fit_adv")
-                        
                         if fit_kinetics_adv:
-                            kinetic_model_adv = st.selectbox(
-                                "Model Type:",
-                                ["Zero Order (Linear)", "First Order (Exponential)", "Second Order", "Power Law"],
-                                key="kinetic_model_adv"
-                            )
+                            kinetic_model_adv = st.selectbox("Model Type:", ["Zero Order (Linear)", "First Order (Exponential)", "Second Order", "Power Law"], key="kinetic_model_adv")
                     
                     with col_v2:
                         fig_trend_adv = go.Figure()
@@ -1503,127 +1333,64 @@ if not master.empty:
                             
                             if show_error_bars_adv and not cond_data.empty:
                                 fig_trend_adv.add_trace(go.Scatter(
-                                    x=cond_data['Days'],
-                                    y=cond_data[f'{target_metric_adv}_Mean'],
-                                    error_y=dict(
-                                        type='data', array=cond_data[f'{target_metric_adv}_SE'], visible=True, thickness=1.5, width=4
-                                    ),
-                                    mode='markers+lines', name=cond,
-                                    marker=dict(size=10, color=color, line=dict(width=1.5, color=BLACK)),
-                                    line=dict(width=2, color=color)
+                                    x=cond_data['Days'], y=cond_data[f'{target_metric_adv}_Mean'],
+                                    error_y=dict(type='data', array=cond_data[f'{target_metric_adv}_SE'], visible=True, thickness=1.5, width=4),
+                                    mode='markers+lines', name=cond, marker=dict(size=10, color=color, line=dict(width=1.5, color=BLACK)), line=dict(width=2, color=color)
                                 ))
                             
                             if show_individual_adv:
                                 ind_data = k_df_adv[k_df_adv['Condition'] == cond]
                                 fig_trend_adv.add_trace(go.Scatter(
                                     x=ind_data['Days'], y=ind_data[target_metric_adv], mode='markers', name=f"{cond} (raw)",
-                                    marker=dict(size=6, color=color, opacity=0.4, symbol='circle'), showlegend=False,
-                                    hovertemplate='%{text}<br>Day: %{x}<br>Value: %{y:.4f}<extra></extra>', text=ind_data['File']
+                                    marker=dict(size=6, color=color, opacity=0.4, symbol='circle'), showlegend=False, hovertemplate='%{text}<br>Day: %{x}<br>Value: %{y:.4f}<extra></extra>', text=ind_data['File']
                                 ))
                             
                             if fit_kinetics_adv and len(cond_data) > 2:
-                                x_data = cond_data['Days'].values
-                                y_data = cond_data[f'{target_metric_adv}_Mean'].values
-                                
+                                x_data, y_data = cond_data['Days'].values, cond_data[f'{target_metric_adv}_Mean'].values
                                 def zero_order(t, k, y0): return y0 + k * t
                                 def first_order(t, k, y0): return y0 * np.exp(k * t)
-                                def second_order(t, k, y0): return 1 / (1/y0 - k * t) if y0 != 0 else y0
                                 def power_law(t, k, y0, n): return y0 + k * t**n
                                 
                                 try:
                                     if "Zero Order" in kinetic_model_adv:
                                         popt, _ = curve_fit(zero_order, x_data, y_data, p0=[0.001, y_data[0]])
-                                        x_fit = np.linspace(0, x_data.max() * 1.1, 100)
-                                        y_fit = zero_order(x_fit, *popt)
-                                        model_label = f"k={popt[0]:.2e} day⁻¹"
+                                        x_fit, y_fit, model_label = np.linspace(0, x_data.max() * 1.1, 100), zero_order(np.linspace(0, x_data.max() * 1.1, 100), *popt), f"k={popt[0]:.2e} d⁻¹"
                                     elif "First Order" in kinetic_model_adv:
                                         popt, _ = curve_fit(first_order, x_data, y_data, p0=[0.001, y_data[0]])
-                                        x_fit = np.linspace(0, x_data.max() * 1.1, 100)
-                                        y_fit = first_order(x_fit, *popt)
-                                        model_label = f"k={popt[0]:.2e} day⁻¹"
+                                        x_fit, y_fit, model_label = np.linspace(0, x_data.max() * 1.1, 100), first_order(np.linspace(0, x_data.max() * 1.1, 100), *popt), f"k={popt[0]:.2e} d⁻¹"
                                     elif "Power Law" in kinetic_model_adv:
                                         popt, _ = curve_fit(power_law, x_data, y_data, p0=[0.001, y_data[0], 1.0])
-                                        x_fit = np.linspace(0, x_data.max() * 1.1, 100)
-                                        y_fit = power_law(x_fit, *popt)
-                                        model_label = f"k={popt[0]:.2e}, n={popt[2]:.2f}"
-                                    
-                                    fig_trend_adv.add_trace(go.Scatter(
-                                        x=x_fit, y=y_fit, mode='lines', name=f"{cond} fit ({model_label})",
-                                        line=dict(dash='dash', width=2, color=color)
-                                    ))
-                                except Exception as e:
-                                    pass
+                                        x_fit, y_fit, model_label = np.linspace(0, x_data.max() * 1.1, 100), power_law(np.linspace(0, x_data.max() * 1.1, 100), *popt), f"k={popt[0]:.2e}, n={popt[2]:.2f}"
+                                    fig_trend_adv.add_trace(go.Scatter(x=x_fit, y=y_fit, mode='lines', name=f"{cond} fit ({model_label})", line=dict(dash='dash', width=2, color=color)))
+                                except Exception: pass
                         
-                        fig_trend_adv.update_layout(
-                            plot_bgcolor=PLOT_BG, paper_bgcolor=PAPER_BG,
-                            title=dict(text=f"<b>{target_metric_adv.replace('_', ' ')} vs. Aging Time</b>", font=dict(family="Arial", size=16, color=BLACK)),
-                            xaxis={**FTIR_STYLE, "title": "<b>Aging Time (Days)</b>", "showgrid": True, "gridcolor": "rgba(0,0,0,0.1)"},
-                            yaxis={**FTIR_STYLE, "title": f"<b>{target_metric_adv.replace('_', ' ')}</b>", "showgrid": True, "gridcolor": "rgba(0,0,0,0.1)"},
-                            height=550, margin=dict(l=70, r=40, t=70, b=70),
-                            legend=dict(bgcolor=WHITE, bordercolor=BLACK, borderwidth=1, font=dict(family="Arial", size=11, color=BLACK), x=1.02, y=1, xanchor='left'),
-                            hovermode='closest'
-                        )
+                        fig_trend_adv.update_layout(plot_bgcolor=PLOT_BG, paper_bgcolor=PAPER_BG, title=dict(text=f"<b>{target_metric_adv.replace('_', ' ')} vs. Aging Time</b>", font=dict(family="Arial", size=16, color=BLACK)), xaxis={**FTIR_STYLE, "title": "<b>Aging Time (Days)</b>"}, yaxis={**FTIR_STYLE, "title": f"<b>{target_metric_adv.replace('_', ' ')}</b>"}, height=550, margin=dict(l=70, r=40, t=70, b=70), legend=dict(bgcolor=WHITE, bordercolor=BLACK, borderwidth=1, font=dict(family="Arial", size=11, color=BLACK), x=1.02, y=1, xanchor='left'))
                         st.plotly_chart(fig_trend_adv, use_container_width=True, config=JOURNAL_CONFIG)
                 
-                # --------------------------------------------------------
-                # TAB 2: ARRHENIUS ANALYSIS
-                # --------------------------------------------------------
                 with viz_tabs[1]:
-                    st.markdown("<p style='font-size:0.9rem; color:#475569; margin-bottom:1rem;'>Arrhenius analysis determines the activation energy (Eₐ) for degradation processes.</p>", unsafe_allow_html=True)
-                    
                     col_a1, col_a2 = st.columns([1, 2])
-                    
                     with col_a1:
-                        arrhenius_index_adv = st.selectbox(
-                            "Index for Arrhenius:", ["Carbonyl_Index", "Hydroxyl_Index", "Overall_Degradation"],
-                            format_func=lambda x: x.replace('_', ' '), key='arrhenius_idx_adv'
-                        )
+                        arrhenius_index_adv = st.selectbox("Index for Arrhenius:", ["Carbonyl_Index", "Hydroxyl_Index", "Overall_Degradation"], format_func=lambda x: x.replace('_', ' '), key='arrhenius_idx_adv')
                         arrhenius_koh_adv = st.selectbox("KOH Concentration (M):", sorted(k_df_adv['KOH_M'].unique()), key='arrhenius_koh_adv')
                         time_point_adv = st.number_input("Reference Time Point (Days):", min_value=0.0, value=float(k_df_adv['Days'].max()) if len(k_df_adv) > 0 else 7.0, key='time_pt_adv')
                     
                     with col_a2:
                         arr_data = stats_df_adv[(stats_df_adv['KOH_M'] == arrhenius_koh_adv) & (stats_df_adv['Days'] == time_point_adv)].copy()
-                        
                         if len(arr_data) > 1:
-                            arr_data['Temp_K'] = arr_data['Temp_C'] + 273.15
-                            arr_data['InvT'] = 1000 / arr_data['Temp_K']
-                            arr_data['ln_Index'] = np.log(arr_data[f'{arrhenius_index_adv}_Mean'])
-                            
-                            slope, intercept, r_value, p_value, std_err = linregress(arr_data['InvT'], arr_data['ln_Index'])
-                            
-                            R = 8.314
-                            Ea_kJ = -slope * R
-                            
+                            arr_data['Temp_K'], arr_data['InvT'], arr_data['ln_Index'] = arr_data['Temp_C'] + 273.15, 1000 / (arr_data['Temp_C'] + 273.15), np.log(arr_data[f'{arrhenius_index_adv}_Mean'])
+                            slope, intercept, r_value, _, _ = linregress(arr_data['InvT'], arr_data['ln_Index'])
                             fig_arr = go.Figure()
-                            fig_arr.add_trace(go.Scatter(
-                                x=arr_data['InvT'], y=arr_data['ln_Index'], mode='markers', name='Experimental',
-                                marker=dict(size=12, color='#E74C3C', line=dict(width=2, color=BLACK)),
-                                error_y=dict(type='data', array=arr_data[f'{arrhenius_index_adv}_SE'] / arr_data[f'{arrhenius_index_adv}_Mean'], visible=True) if f'{arrhenius_index_adv}_SE' in arr_data.columns else None
-                            ))
-                            
+                            fig_arr.add_trace(go.Scatter(x=arr_data['InvT'], y=arr_data['ln_Index'], mode='markers', name='Experimental', marker=dict(size=12, color='#E74C3C', line=dict(width=2, color=BLACK)), error_y=dict(type='data', array=arr_data[f'{arrhenius_index_adv}_SE'] / arr_data[f'{arrhenius_index_adv}_Mean'], visible=True) if f'{arrhenius_index_adv}_SE' in arr_data.columns else None))
                             x_fit = np.linspace(arr_data['InvT'].min() * 0.95, arr_data['InvT'].max() * 1.05, 100)
                             fig_arr.add_trace(go.Scatter(x=x_fit, y=slope * x_fit + intercept, mode='lines', name=f'Linear Fit (R²={r_value**2:.4f})', line=dict(dash='dash', width=2, color='#3498DB')))
-                            
-                            fig_arr.update_layout(
-                                plot_bgcolor=PLOT_BG, paper_bgcolor=PAPER_BG,
-                                title=dict(text=f"<b>Arrhenius Plot: {arrhenius_index_adv.replace('_', ' ')}</b><br><sub>Eₐ = {Ea_kJ:.1f} kJ/mol | {arrhenius_koh_adv}M KOH | Day {time_point_adv}</sub>", font=dict(family="Arial", size=15, color=BLACK)),
-                                xaxis=dict(title="<b>1000/T (K⁻¹)</b>", **FTIR_STYLE), yaxis=dict(title=f"<b>ln({arrhenius_index_adv.replace('_', ' ')})</b>", **FTIR_STYLE),
-                                height=500, margin=dict(l=70, r=40, t=80, b=70)
-                            )
+                            fig_arr.update_layout(plot_bgcolor=PLOT_BG, paper_bgcolor=PAPER_BG, title=dict(text=f"<b>Arrhenius Plot: {arrhenius_index_adv.replace('_', ' ')}</b><br><sub>Eₐ = {-slope * 8.314:.1f} kJ/mol | {arrhenius_koh_adv}M KOH | Day {time_point_adv}</sub>", font=dict(family="Arial", size=15, color=BLACK)), xaxis=dict(title="<b>1000/T (K⁻¹)</b>", **FTIR_STYLE), yaxis=dict(title=f"<b>ln({arrhenius_index_adv.replace('_', ' ')})</b>", **FTIR_STYLE), height=500, margin=dict(l=70, r=40, t=80, b=70))
                             st.plotly_chart(fig_arr, use_container_width=True, config=JOURNAL_CONFIG)
-                        else:
-                            st.warning(f"Need at least 2 temperatures at day {time_point_adv} with {arrhenius_koh_adv}M KOH.")
+                        else: st.warning(f"Need at least 2 temperatures at day {time_point_adv} with {arrhenius_koh_adv}M KOH.")
                 
-                # --------------------------------------------------------
-                # TAB 3: MULTI-VARIABLE MAPPING
-                # --------------------------------------------------------
                 with viz_tabs[2]:
-                    st.markdown("<p style='font-size:0.9rem; color:#475569;'>Visualize degradation as a function of time, temperature, and KOH concentration.</p>", unsafe_allow_html=True)
-                    
                     map_index = st.selectbox("Degradation Index:", ["Carbonyl_Index", "Hydroxyl_Index", "Overall_Degradation"], format_func=lambda x: x.replace('_', ' '), key='map_idx_adv')
-                    plot_type = st.radio("Plot Type:", ["2D Contour (Temp vs Time)", "3D Surface", "Heatmap (Temp vs KOH)"], horizontal=True, key="plot_type_adv")
-                    
-                    if plot_type == "2D Contour (Temp vs Time)":
+                    plot_type = st.radio("Plot Type:", ["2D Contour", "3D Surface", "Heatmap"], horizontal=True, key="plot_type_adv")
+                    if plot_type == "2D Contour":
                         selected_koh = st.selectbox("KOH Concentration (M):", sorted(stats_df_adv['KOH_M'].unique()), key='contour_koh_adv')
                         contour_data = stats_df_adv[stats_df_adv['KOH_M'] == selected_koh].copy()
                         if len(contour_data) > 3:
@@ -1631,8 +1398,6 @@ if not master.empty:
                             fig_contour = go.Figure(data=go.Contour(z=pivot.values, x=pivot.columns, y=pivot.index, colorscale='RdYlBu_r', colorbar=dict(title=map_index.replace('_', ' '))))
                             fig_contour.update_layout(plot_bgcolor=PLOT_BG, paper_bgcolor=PAPER_BG, title=f"<b>{map_index.replace('_', ' ')} - {selected_koh}M KOH</b>", xaxis=dict(title="<b>Aging Time (Days)</b>", **FTIR_STYLE), yaxis=dict(title="<b>Temperature (°C)</b>", **FTIR_STYLE), height=500)
                             st.plotly_chart(fig_contour, use_container_width=True, config=JOURNAL_CONFIG)
-                        else: st.warning("Need more data points.")
-                    
                     elif plot_type == "3D Surface":
                         selected_koh_3d = st.selectbox("KOH Concentration (M):", sorted(stats_df_adv['KOH_M'].unique()), key='3d_koh_adv')
                         surface_data = stats_df_adv[stats_df_adv['KOH_M'] == selected_koh_3d].copy()
@@ -1641,8 +1406,6 @@ if not master.empty:
                             fig_3d = go.Figure(data=[go.Surface(z=pivot.values, x=pivot.columns, y=pivot.index, colorscale='Viridis')])
                             fig_3d.update_layout(title=f"<b>{map_index.replace('_', ' ')} Surface</b>", scene=dict(xaxis=dict(title='Days'), yaxis=dict(title='Temp (°C)'), zaxis=dict(title=map_index.replace('_', ' '))), height=600)
                             st.plotly_chart(fig_3d, use_container_width=True, config=JOURNAL_CONFIG)
-                        else: st.warning("Need more data points.")
-                    
                     else:
                         selected_days = st.selectbox("Time Point (Days):", sorted(stats_df_adv['Days'].unique()), key='heatmap_days_adv')
                         heatmap_data = stats_df_adv[stats_df_adv['Days'] == selected_days].copy()
@@ -1652,131 +1415,48 @@ if not master.empty:
                             fig_heat.update_layout(plot_bgcolor=PLOT_BG, paper_bgcolor=PAPER_BG, title=f"<b>{map_index.replace('_', ' ')} at Day {selected_days}</b>", xaxis=dict(title="<b>KOH Concentration (M)</b>", **FTIR_STYLE), yaxis=dict(title="<b>Temperature (°C)</b>", **FTIR_STYLE), height=500)
                             st.plotly_chart(fig_heat, use_container_width=True, config=JOURNAL_CONFIG)
                 
-                # --------------------------------------------------------
-                # TAB 4: MECHANISM CORRELATION
-                # --------------------------------------------------------
                 with viz_tabs[3]:
-                    st.markdown("<p style='font-size:0.9rem; color:#475569;'>Analyze correlations between different degradation mechanisms and pathways.</p>", unsafe_allow_html=True)
                     corr_indices = ['Carbonyl_Index', 'Hydroxyl_Index', 'Ester_Index', 'Vinyl_Index', 'Chain_Integrity']
                     available_indices = [idx for idx in corr_indices if idx in k_df_adv.columns]
-                    
                     if len(available_indices) > 1:
                         corr_matrix = k_df_adv[available_indices].corr()
                         fig_corr = go.Figure(data=go.Heatmap(z=corr_matrix.values, x=[idx.replace('_', ' ') for idx in corr_matrix.columns], y=[idx.replace('_', ' ') for idx in corr_matrix.index], colorscale='RdBu', zmid=0))
                         fig_corr.update_layout(plot_bgcolor=PLOT_BG, paper_bgcolor=PAPER_BG, title="<b>Degradation Mechanism Correlation</b>", height=500)
                         st.plotly_chart(fig_corr, use_container_width=True, config=JOURNAL_CONFIG)
                 
-                # ============================================================
-                # SECTION 5: DATA EXPORT
-                # ============================================================
                 st.markdown("<h3 style='font-family:Arial; font-size:1.3rem; font-weight:700; margin-top:2rem;'>💾 Export Analysis Results</h3>", unsafe_allow_html=True)
                 col_e1, col_e2, col_e3 = st.columns(3)
-                with col_e1:
-                    csv_raw = k_df_adv.to_csv(index=False).encode('utf-8')
-                    st.download_button(label="📥 Raw Kinetics Data", data=csv_raw, file_name="EPDM_Kinetics_Advanced.csv", mime="text/csv", key="dl_raw_adv")
-                with col_e2:
-                    if not stats_df_adv.empty:
-                        csv_stats = stats_df_adv.to_csv(index=False).encode('utf-8')
-                        st.download_button(label="📊 Statistical Summary", data=csv_stats, file_name="EPDM_Kinetics_Stats_Advanced.csv", mime="text/csv", key="dl_stats_adv")
+                with col_e1: st.download_button(label="📥 Raw Kinetics Data", data=k_df_adv.to_csv(index=False).encode('utf-8'), file_name="EPDM_Kinetics_Advanced.csv", mime="text/csv", key="dl_raw_adv")
+                with col_e2: 
+                    if not stats_df_adv.empty: st.download_button(label="📊 Statistical Summary", data=stats_df_adv.to_csv(index=False).encode('utf-8'), file_name="EPDM_Kinetics_Stats_Advanced.csv", mime="text/csv", key="dl_stats_adv")
 
-            # ============================================================
-            # SECTION 6: SCIENTIFIC REFERENCE & METHODOLOGICAL FRAMEWORK
-            # ============================================================
             st.markdown("<hr style='margin-top:3rem; margin-bottom:2rem;'>", unsafe_allow_html=True)
             st.markdown("<h3 style='font-family:Arial; font-size:1.3rem; font-weight:700; color:#c9a84c;'>📖 Scientific Reference & Methodological Framework</h3>", unsafe_allow_html=True)
-            st.markdown("<p style='font-size:0.95rem; color:#475569; margin-bottom: 1.5rem;'>Theoretical foundations, validated parameters, and peer-reviewed methodologies for EPDM degradation in alkaline media.</p>", unsafe_allow_html=True)
 
             with st.expander("🔬 1. Spectral Band Assignments & Structural Indices", expanded=False):
                 st.markdown(r"""
                 #### Mid-IR Characteristic Frequencies for EPDM
                 FTIR-ATR tracking of EPDM relies on normalizing transient degradation species against the chemically stable aliphatic backbone (Koenig, 1999).
                 
-                | Wavenumber (cm⁻¹) | Vibrational Mode | Structural Assignment | Kinetic Significance |
-                | :--- | :--- | :--- | :--- |
-                | **1460 ± 5** | $\delta(CH_2)$ scissoring | Backbone Methylene | **Internal Reference ($I_0$)**. Assumed invariant during early-to-mid stage aging. |
-                | **1715 ± 15** | $\nu(C=O)$ stretching | Carbonyls (Ketones/Acids) | Primary thermo-oxidative degradation product. |
-                | **3400 ± 100** | $\nu(O-H)$ stretching | Hydroperoxides / Free Water | Precursor to chain scission; indicator of alkaline hydrolysis/swelling. |
-                | **1240 ± 10** | $\nu(C-O-C)$ stretching | Esters / Ethers | Secondary oxidation products; crosslinking via etherification. |
-                | **1640 ± 10** | $\nu(C=C)$ stretching | Residual ENB/VNB Diene | Depletion indicates active crosslinking or electrophilic attack. |
-                | **1380 ± 5** | $\delta(CH_3)$ symmetric | Propylene Methyl Group | Loss indicates severe polymer backbone fragmentation. |
-
-                **Calculation of Structural Indices ($SI$)**
-                Indices are calculated as a dimensionless ratio of the integrated absorbance ($A$) of the functional group to the reference band:
+                | Wavenumber (cm⁻¹) | Vibrational Mode | Structural Assignment |
+                | :--- | :--- | :--- |
+                | **1460 ± 5** | $\delta(CH_2)$ scissoring | Backbone Methylene (**Internal Reference $I_0$**) |
+                | **1715 ± 15** | $\nu(C=O)$ stretching | Carbonyls (Ketones/Acids) |
+                | **3400 ± 100** | $\nu(O-H)$ stretching | Hydroperoxides / Free Water |
                 """)
-                st.latex(r"SI_{group} = \frac{\int_{\nu_1}^{\nu_2} A_{group}(\nu) \, d\nu}{\int_{\nu_3}^{\nu_4} A_{ref}(\nu) \, d\nu}")
 
-            with st.expander("📈 2. Phenomenological Kinetics & Degradation Pathways", expanded=False):
+            with st.expander("📈 2. Phenomenological Kinetics", expanded=False):
                 st.markdown("""
-                #### Oxidation & Hydrolysis Mechanisms
-                EPDM degradation in KOH ($OH^-$) at elevated temperatures exhibits competitive kinetic pathways:
-                1.  **Thermo-oxidation (Radical Chain Mechanism):** Initiation via hydrogen abstraction at the allylic positions of the diene monomer, followed by propagation to form hydroperoxides ($3400 \text{ cm}^{-1}$), terminating in carbonyls ($1715 \text{ cm}^{-1}$) (Celina et al., 2005).
-                2.  **Alkaline Hydrolysis:** High $pH$ environments accelerate the cleavage of susceptible bonds and increase chain mobility, facilitating water ingress.
-                
-                #### Model Selection Criteria
                 * **First-Order ($R^2 > 0.95$):** Indicates degradation is proportional to the concentration of intact polymer chains (classic bulk oxidation).
                 * **Zero-Order ($R^2 > 0.95$):** Suggests degradation is strictly limited by the diffusion of oxygen/KOH into the polymer matrix (surface-limited erosion).
                 """)
 
-            with st.expander("🌡️ 3. Arrhenius Thermodynamics & Life Prediction", expanded=False):
-                st.markdown("""
-                #### Arrhenius Activation Energy ($E_a$)
-                The temperature dependence of the degradation rate constant ($k$) is modeled using the Arrhenius equation (Gillen et al., 2005):
-                """)
-                st.latex(r"k(T) = A \exp\left(\frac{-E_a}{RT}\right)")
-                st.markdown("""
-                Linearization via natural logarithm yields the classical Arrhenius plot:
-                """)
-                st.latex(r"\ln(k) = \ln(A) - \frac{E_a}{R}\left(\frac{1}{T}\right)")
-                st.markdown("""
-                *Where:*
-                * $E_a$ = Apparent activation energy ($\text{J}\cdot\text{mol}^{-1}$)
-                * $R$ = Universal gas constant ($8.314 \text{ J}\cdot\text{mol}^{-1}\cdot\text{K}^{-1}$)
-                * $T$ = Absolute temperature ($\text{K}$)
-
-                #### Predictive Lifetime Extrapolation ($t_f$)
-                Assuming pseudo-first-order kinetics, the time to reach a critical failure index ($I_f$) at a specific operational temperature ($T_{op}$) is:
-                """)
-                st.latex(r"t_f = \frac{\ln(I_f / I_0)}{A \exp(-E_a / R T_{op})}")
-                st.markdown("""
-                **Extrapolation Limits:** Lifetime predictions are highly reliable within $\pm 20^\circ\text{C}$ of the empirical test range. Extrapolations beyond this risk encountering polymer phase transitions (e.g., $T_g$, $T_m$) which invalidate the linear Arrhenius assumption (Wise et al., 1995).
-                """)
-
-            with st.expander("📊 4. Statistical Rigor & Data Quality Standards", expanded=False):
-                st.markdown("""
-                #### Replicate Confidence
-                * **Sample Size ($n$):** A minimum of $n=3$ distinct spatial measurements per sample is required to account for surface heterogeneity.
-                * **Standard Error of the Mean (SE):** Calculated as $SE = \sigma / \sqrt{n}$. All trend visualizations must include $\pm 1$ SE bounded error bars.
-                
-                #### Instrument Parameters for Publication
-                * **Resolution:** Minimum $4 \text{ cm}^{-1}$ to properly resolve the 1715/1640 complex.
-                * **Signal-to-Noise (SNR):** The baseline noise (evaluated at $2000-1800 \text{ cm}^{-1}$) must be $< 0.002$ Absorbance Units. Increase co-added scans (typically $32-64$) if SNR is insufficient.
-                """)
-
-            with st.expander("📚 5. Literature Cited", expanded=False):
-                st.markdown("""
-                1. **Koenig, J. L. (1999).** *Spectroscopy of Polymers* (2nd ed.). Elsevier. (Provides foundational basis for mid-IR vibrational assignments in polyolefins).
-                2. **Celina, M., Gillen, K. T., & Assink, R. A. (2005).** Accelerated aging and lifetime prediction: Review of non-Arrhenius behaviour due to two competing processes. *Polymer Degradation and Stability*, 90(3), 395-404.
-                3. **Gillen, K. T., Celina, M., & Clough, R. L. (2005).** Density profiling techniques for monitoring polymer degradation. *Polymer Degradation and Stability*, 87(2), 221-228.
-                4. **Wise, J., Gillen, K. T., & Clough, R. L. (1995).** Time-temperature superposition formulation for predicting polymer degradation rates. *Polymer*, 36(2), 405-414.
-                """)
 else:
-    # --- Empty State UI ---
     st.markdown("""
-    <div style="
-        margin-top:3rem; padding:3rem 2rem; background:#ffffff;
-        border:1px solid #e2e8f0; box-shadow: 0 4px 15px rgba(0,0,0,0.03);
-        border-radius:8px; text-align:center;
-    ">
+    <div style="margin-top:3rem; padding:3rem 2rem; background:#ffffff; border:1px solid #e2e8f0; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border-radius:8px; text-align:center;">
         <div style="font-size:3rem;margin-bottom:1rem;">📉</div>
-        <div style="
-            font-family:'Playfair Display',Georgia,serif;
-            font-size:1.5rem;color:#000000; margin-bottom:0.5rem; font-weight:700;
-        ">Ready for Spectral Analysis</div>
-        <div style="
-            font-family:'IBM Plex Sans',sans-serif;
-            font-size:0.85rem;color:#000000;
-            max-width:480px;margin:0 auto;line-height:1.7;
-        ">
+        <div style="font-family:'Playfair Display',Georgia,serif; font-size:1.5rem;color:#000000; margin-bottom:0.5rem; font-weight:700;">Ready for Spectral Analysis</div>
+        <div style="font-family:'IBM Plex Sans',sans-serif; font-size:0.85rem;color:#000000; max-width:480px;margin:0 auto;line-height:1.7;">
             Upload your raw FTIR data files via the <b style="color:#c9a84c;">Data Input</b> panel
             in the sidebar. Supports automatic baseline correction (ALS), Savitzky-Golay smoothing, 
             2nd Derivative resolution enhancement, and PCA Clustering.
