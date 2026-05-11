@@ -516,7 +516,28 @@ POLYMER_DB = {
     "FKM (Viton)": {1200: "C-F str", 1120: "CF2 str", 880: "C-F bend", 600: "CF2 wag", 500: "CF2 rock"},
     "PU (Polyurethane)": {3330: "N-H str", 1730: "C=O (Free)", 1700: "C=O (H-bond)", 1530: "Amide II", 815: "Arom. C-H out", 770: "Amide IV"},
     "General / Unknown": {3300: "O-H / N-H", 2920: "C-H", 2250: "C≡N", 1720: "C=O", 1640: "C=C / H2O", 1050: "C-O", 800: "C-H arom./alkene", 500: "Skeletal/Metal-O"},
-    "Biosynthesized CuO NPs": {3400: "O-H (Phytochemicals)", 1620: "C=O / C=C (Extract)", 1384: "C-N str (Amines)", 1050: "C-O str (Alcohols/Ethers)", 530: "Cu-O stretching", 480: "Cu-O stretching", 430: "Cu-O stretching"}
+    "Biosynthesized CuO NPs": {
+    3400: "O-H stretching (Phenols/Alcohols, phytochemicals)",
+    2920: "C-H asymmetric stretching (Aliphatic CH2/CH3)",
+    2850: "C-H symmetric stretching (Aliphatic groups)",
+    2350: "CO2 adsorption vibration",
+    1620: "C=O / C=C stretching (Flavonoids, polyphenols, amide I)",
+    1540: "N-H bending / Amide II vibration",
+    1450: "CH2 bending / O-H bending (Carboxylates)",
+    1384: "C-N stretching (Amines) / NO3 vibration",
+    1320: "C-N stretching / O-H bending",
+    1240: "C-O stretching (Alcohols/Esters)",
+    1160: "C-O-C stretching (Ethers, polysaccharides)",
+    1100: "C-O stretching (Secondary alcohols)",
+    1050: "C-O stretching (Alcohols/Ethers)",
+    980: "=C-H bending (Alkenes)",
+    870: "Aromatic C-H bending",
+    780: "Aromatic out-of-plane bending",
+    650: "Cu-O-H vibration",
+    530: "Cu-O stretching vibration",
+    480: "Cu-O lattice stretching",
+    430: "Cu-O lattice vibration"
+}
 }
 
 # ==========================================
